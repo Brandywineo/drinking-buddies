@@ -171,3 +171,35 @@ export async function initiateB2CPayout(input: { phone: string; amountMinor: num
     responseDescription: typeof result.ResponseDescription === 'string' ? result.ResponseDescription : 'Payout request accepted for processing',
   }
 }
+
+export async function initiateReversal(input: { transactionId: string; amountMinor: number; reference: string }) {
+  if (process.env.MPESA_ENV !== 'sandbox') throw new Error('Live M-PESA reversals are disabled')
+  const initiator = required('MPESA_REVERSAL_INITIATOR_NAME')
+  const securityCredential = required('MPESA_REVERSAL_SECURITY_CREDENTIAL')
+  const receiverParty = required('MPESA_REVERSAL_RECEIVER_PARTY')
+  const receiverIdentifierType = required('MPESA_REVERSAL_IDENTIFIER_TYPE')
+  const resultUrl = required('MPESA_REVERSAL_RESULT_URL')
+  const timeoutUrl = required('MPESA_REVERSAL_TIMEOUT_URL')
+  if (!resultUrl.startsWith('https://') || !timeoutUrl.startsWith('https://')) {
+    throw new Error('Daraja reversal callback URLs must use HTTPS')
+  }
+  if (input.amountMinor % 100 !== 0) throw new Error('M-PESA reversal amount must be whole shillings')
+  const amount = input.amountMinor / 100
+  const result = await postDaraja('/mpesa/reversal/v1/request', {
+    Initiator: initiator,
+    SecurityCredential: securityCredential,
+    CommandID: 'TransactionReversal',
+    TransactionID: input.transactionId,
+    Amount: amount,
+    ReceiverParty: receiverParty,
+    RecieverIdentifierType: receiverIdentifierType,
+    ResultURL: resultUrl,
+    QueueTimeOutURL: timeoutUrl,
+    Remarks: 'Meetup booking refund',
+    Occasion: input.reference.slice(0, 30),
+  })
+  if (typeof result.ConversationID !== 'string' || typeof result.OriginatorConversationID !== 'string') {
+    throw new Error('Daraja did not return reversal conversation references')
+  }
+  return { conversationId: result.ConversationID, originatorConversationId: result.OriginatorConversationID }
+}

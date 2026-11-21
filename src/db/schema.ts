@@ -20,8 +20,9 @@ export const meetupVisibility = pgEnum('meetup_visibility', ['public', 'approval
 export const meetupPricingType = pgEnum('meetup_pricing_type', ['free', 'paid'])
 export const hostMembershipPlan = pgEnum('host_membership_plan', ['free_trial', 'premium_monthly', 'premium_annual'])
 export const meetupBookingStatus = pgEnum('meetup_booking_status', ['pending_payment', 'confirmed', 'cancelled', 'refunded', 'attended', 'no_show'])
+export const marketplaceRefundStatus = pgEnum('marketplace_refund_status', ['requested', 'processing', 'succeeded', 'failed', 'rejected'])
 export const hostPayoutStatus = pgEnum('host_payout_status', ['requested', 'approved', 'processing', 'paid', 'failed', 'rejected'])
-export const walletEntryKind = pgEnum('wallet_entry_kind', ['booking_credit', 'platform_fee', 'processor_fee', 'refund_debit', 'payout_debit', 'payout_reversal', 'payout_reserve', 'payout_release', 'booking_release', 'adjustment'])
+export const walletEntryKind = pgEnum('wallet_entry_kind', ['booking_credit', 'platform_fee', 'processor_fee', 'refund_debit', 'payout_debit', 'payout_reversal', 'payout_reserve', 'payout_release', 'booking_release', 'refund_reserve', 'refund_release', 'adjustment'])
 export const meetupMemberStatus = pgEnum('meetup_member_status', ['requested', 'approved', 'declined', 'left', 'removed'])
 export const venueApprovalStatus = pgEnum('venue_approval_status', ['pending', 'approved', 'rejected', 'suspended'])
 export const subscriptionStatus = pgEnum('subscription_status', ['trialing', 'active', 'past_due', 'cancelled', 'expired'])
@@ -421,6 +422,30 @@ export const hostPayouts = pgTable('host_payouts', {
 }, (table) => [
   index('host_payouts_user_created_idx').on(table.userId, table.createdAt),
   index('host_payouts_status_created_idx').on(table.status, table.createdAt),
+])
+
+export const marketplaceRefunds = pgTable('marketplace_refunds', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  bookingId: uuid('booking_id').notNull().references(() => meetupBookings.id, { onDelete: 'restrict' }),
+  paymentId: uuid('payment_id').notNull().references(() => payments.id, { onDelete: 'restrict' }),
+  attendeeId: uuid('attendee_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  hostId: uuid('host_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  refundAmountMinor: integer('refund_amount_minor').notNull(),
+  hostDebitMinor: integer('host_debit_minor').notNull().default(0),
+  currency: varchar('currency', { length: 3 }).notNull(),
+  status: marketplaceRefundStatus('status').notNull().default('requested'),
+  idempotencyKey: varchar('idempotency_key', { length: 140 }).notNull(),
+  providerReference: varchar('provider_reference', { length: 180 }),
+  failureReason: varchar('failure_reason', { length: 1000 }),
+  reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex('marketplace_refunds_idempotency_uq').on(table.idempotencyKey),
+  index('marketplace_refunds_booking_idx').on(table.bookingId),
+  index('marketplace_refunds_status_created_idx').on(table.status, table.createdAt),
 ])
 
 export const paymentWebhookEvents = pgTable('payment_webhook_events', {

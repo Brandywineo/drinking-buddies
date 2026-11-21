@@ -50,6 +50,13 @@
       "when": 1795564800003,
       "tag": "0006_marketplace_payouts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795564800004,
+      "tag": "0007_marketplace_refunds",
+      "breakpoints": true
     }
   ]
 }
