@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { and, count, eq, gt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { meetupBookings, meetups, platformSettings } from '../db/schema'
+import { meetupBookings, meetupMembers, meetups, platformSettings } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
@@ -44,14 +44,18 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
           }
 
           const now = new Date()
-          const [occupied] = await tx.select({ value: count() }).from(meetupBookings).where(and(
+          const [approvedMembers] = await tx.select({ value: count() }).from(meetupMembers).where(and(
+            eq(meetupMembers.meetupId, meetup.id),
+            eq(meetupMembers.status, 'approved'),
+          ))
+          const [occupied] = await tx.select({ value: sql<number>`coalesce(sum(quantity), 0)::int` }).from(meetupBookings).where(and(
             eq(meetupBookings.meetupId, meetup.id),
             or(
               eq(meetupBookings.status, 'confirmed'),
               and(eq(meetupBookings.status, 'pending_payment'), gt(meetupBookings.expiresAt, now)),
             ),
           ))
-          if ((occupied?.value ?? 0) + parsedBody.data.quantity > meetup.capacity) return { error: 'FULL' as const }
+          if ((approvedMembers?.value ?? 0) + (occupied?.value ?? 0) + parsedBody.data.quantity > meetup.capacity) return { error: 'FULL' as const }
 
           const [setting] = await tx.select({ value: platformSettings.value }).from(platformSettings)
             .where(eq(platformSettings.key, 'marketplace_fees')).limit(1)
