@@ -10,6 +10,7 @@ type FinanceSettings = {
   hostAnnualPriceMinor: number
 }
 type Payout = { id: string; email: string; displayName: string | null; amountMinor: number; status: string; destinationReference: string | null; currency: string }
+type ReconciliationEvent = { id: string; provider: string; providerEventId: string; eventType: string; processedAt: string | null; processingError: string | null; createdAt: string }
 type Refund = { id: string; attendeeEmail: string; attendeeName: string | null; amountMinor: number; hostDebitMinor: number; currency: string; status: string; failureReason: string | null }
 
 const defaults: FinanceSettings = {
@@ -29,6 +30,7 @@ function AdminFinancePage() {
   const [settings, setSettings] = useState(defaults)
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [refunds, setRefunds] = useState<Refund[]>([])
+  const [events, setEvents] = useState<ReconciliationEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState('')
@@ -39,14 +41,16 @@ function AdminFinancePage() {
     setLoading(true)
     setError('')
     try {
-      const [finance, payoutData, refundData] = await Promise.all([
+      const [finance, payoutData, refundData, eventData] = await Promise.all([
         api<FinanceSettings>('/api/admin/finance/settings'),
         api<{ payouts: Payout[] }>('/api/admin/finance/payouts'),
         api<{ refunds: Refund[] }>('/api/admin/finance/refunds'),
+        api<{ events: ReconciliationEvent[] }>('/api/admin/finance/reconciliation'),
       ])
       setSettings(finance)
       setPayouts(payoutData.payouts)
       setRefunds(refundData.refunds)
+      setEvents(eventData.events)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not load finance data.')
     } finally {
@@ -131,6 +135,16 @@ function AdminFinancePage() {
       {loading ? <p className="text-sm opacity-60">Loading refund queue…</p> : refunds.length === 0 ? <p className="rounded-xl border border-white/10 p-5 text-sm opacity-60">No refund requests.</p> : refunds.map((refund) => <article key={refund.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 p-4">
         <div><b>{refund.attendeeName ?? refund.attendeeEmail}</b><p className="text-sm opacity-65">{refund.attendeeEmail}</p><p className="mt-1 text-sm">{money(refund.amountMinor, refund.currency)} refund · host share {money(refund.hostDebitMinor, refund.currency)} · <span className="capitalize">{refund.status}</span></p>{refund.failureReason && <p className="mt-1 text-xs text-amber-300">{refund.failureReason}</p>}</div>
         {refund.status === 'requested' && <div className="flex gap-2"><button disabled={busy === refund.id} onClick={() => void decide('refunds', refund.id, 'reject')} className="rounded-lg border border-white/20 px-3 py-2 text-sm">Reject</button><button disabled={busy === refund.id} onClick={() => void decide('refunds', refund.id, 'approve')} className="rounded-lg bg-lime-300 px-3 py-2 text-sm font-semibold text-black">Approve reversal</button></div>}
+      </article>)}
+    </section>
+
+    <section className="grid gap-3">
+      <div><h2 className="text-xl font-semibold">Reconciliation exceptions</h2><p className="text-sm opacity-60">Unprocessed callbacks and provider events requiring manual investigation. Uncertain money movements remain reserved.</p></div>
+      {events.length === 0 ? <p className="rounded-xl border border-white/10 p-4 text-sm opacity-60">No reconciliation exceptions.</p> : events.map((event) => <article key={event.id} className="rounded-xl border border-amber-300/20 p-4">
+        <div className="flex flex-wrap justify-between gap-2"><b>{event.provider} · {event.eventType}</b><span className="text-xs opacity-60">{new Date(event.createdAt).toLocaleString()}</span></div>
+        <p className="mt-1 break-all text-xs opacity-60">{event.providerEventId}</p>
+        {event.processingError && <p className="mt-2 text-sm text-amber-200">{event.processingError}</p>}
+        <p className="mt-1 text-xs opacity-50">{event.processedAt ? 'Processed' : 'Awaiting processing / reconciliation'}</p>
       </article>)}
     </section>
     <footer className="text-xs opacity-50">Daraja execution remains sandbox-only. Configure credentials and Safaricom callback permissions before running transaction tests.</footer>
