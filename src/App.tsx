@@ -60,6 +60,7 @@ function App() {
   const [profileIntents, setProfileIntents] = useState<string[]>(['drinking_buddies'])
   const [preferredGenders, setPreferredGenders] = useState<string[]>([])
   const [locationVisibility, setLocationVisibility] = useState<'private' | 'matches' | 'public'>('private')
+  const [discoverable, setDiscoverable] = useState(true)
 
   async function loadDiscovery(selectedArea = area) {
     setDiscoveryLoading(true)
@@ -107,6 +108,7 @@ function App() {
           setProfileIntents(ownProfile.connectionIntents)
           setPreferredGenders(ownProfile.preferredGenders)
           setLocationVisibility(ownProfile.locationVisibility)
+          setDiscoverable(ownProfile.discoverable)
           await loadDiscovery('All areas')
         } else {
           setProfileName(user.displayName ?? '')
@@ -177,7 +179,7 @@ function App() {
           interests: profileInterests.split(',').map((item) => item.trim()).filter(Boolean),
           connectionIntents: profileIntents,
           preferredGenders,
-          discoverable: true,
+          discoverable,
           locationVisibility,
         }),
       })
@@ -241,14 +243,14 @@ function App() {
           </section>
 
           <section className="quick-stats">
-            <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>24</b><small>people nearby</small></span></div>
+            <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>{profiles.length}</b><small>people in your feed</small></span></div>
             <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>8</b><small>meetups this week</small></span></div>
             <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>12</b><small>places to explore</small></span></div>
             <div className="stat stat-note"><span className="online-avatars"><i>M</i><i>B</i><i>N</i></span><span><b>People are making plans</b><small>See what’s happening around you</small></span></div>
           </section>
 
           <div className="section-tabs" role="tablist" aria-label="Discovery sections">
-            <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>24</span></button>
+            <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
             <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups <span>8</span></button>
             <button role="tab" aria-selected={tab === 'places'} className={tab === 'places' ? 'selected' : ''} onClick={() => setTab('places')}>Places & events</button>
           </div>
@@ -257,7 +259,7 @@ function App() {
             {authStatus === 'loading' ? <div className="empty-state"><b>Loading your account…</b></div> : authStatus === 'signed_out' ? <div className="empty-state"><ShieldCheck size={26} /><h2>Sign in to meet your people.</h2><p>Discover real community members, save your preferences and connect through mutual matches.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in to discover <ArrowRight size={15} /></button><p>New here? <a href="/register">Create an account</a></p></div> : !profile ? <div className="empty-state"><b>Complete your profile to get started.</b><p>Tell the community a little about yourself and set your discovery preferences.</p><button className="primary-button" onClick={() => setShowProfileForm(true)}>Set up my profile <ArrowRight size={15} /></button></div> : <>
             <section className="tonight-banner">
               <div className="tonight-copy"><span className="banner-kicker">THE CITY IS YOURS</span><h2>Who's up for<br />tonight?</h2><p>Find people who are free, nearby and in the mood to connect.</p><button className="banner-button" onClick={() => setTab('meetups')}>Explore tonight’s meetups <ArrowRight size={15} /></button></div>
-              <div className="banner-image"><div className="banner-image-overlay" /><div className="floating-tag"><span className="live-dot" /> 12 people looking tonight</div></div>
+              <div className="banner-image"><div className="banner-image-overlay" /><div className="floating-tag"><span className="live-dot" /> Find your next connection</div></div>
               <div className="banner-orb orb-one" /><div className="banner-orb orb-two" />
             </section>
             <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>People near you</h2><p>Say hello to someone new. Match first, then chat.</p></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div>
