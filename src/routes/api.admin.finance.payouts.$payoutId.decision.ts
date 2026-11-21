@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { hostPayouts, hostWalletAccounts, hostWalletTransactions } from '../db/schema'
