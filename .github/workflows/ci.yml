@@ -50,3 +50,66 @@ jobs:
           curl --silent --fail http://127.0.0.1:3000/api/ready | grep -q '"database":"connected"'
           test "$(curl --silent --output /tmp/conversations.json --write-out '%{http_code}' http://127.0.0.1:3000/api/conversations)" = "401"
           test "$(curl --silent --output /tmp/messages.json --write-out '%{http_code}' http://127.0.0.1:3000/api/conversations/00000000-0000-4000-8000-000000000000/messages)" = "401"
+
+      - name: Integration test authenticated two-user messaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          USER_A="10000000-0000-4000-8000-000000000001"
+          USER_B="10000000-0000-4000-8000-000000000002"
+          USER_C="10000000-0000-4000-8000-000000000003"
+          MATCH_ID="20000000-0000-4000-8000-000000000001"
+          CONVERSATION_ID="30000000-0000-4000-8000-000000000001"
+          TOKEN_A="ci-user-a-$(openssl rand -hex 16)"
+          TOKEN_B="ci-user-b-$(openssl rand -hex 16)"
+          TOKEN_C="ci-user-c-$(openssl rand -hex 16)"
+          HASH_A="$(printf %s "$TOKEN_A" | sha256sum | cut -d' ' -f1)"
+          HASH_B="$(printf %s "$TOKEN_B" | sha256sum | cut -d' ' -f1)"
+          HASH_C="$(printf %s "$TOKEN_C" | sha256sum | cut -d' ' -f1)"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -v user_a="$USER_A" -v user_b="$USER_B" -v user_c="$USER_C" \
+            -v match_id="$MATCH_ID" -v conversation_id="$CONVERSATION_ID" \
+            -v hash_a="$HASH_A" -v hash_b="$HASH_B" -v hash_c="$HASH_C" <<'SQL'
+          INSERT INTO users (id,email,email_normalized,status,age_acknowledged_at,age_gate_version,email_verified_at)
+          VALUES
+            (:'user_a','ci-a@example.test','ci-a@example.test','active',now(),'ci-v1',now()),
+            (:'user_b','ci-b@example.test','ci-b@example.test','active',now(),'ci-v1',now()),
+            (:'user_c','ci-c@example.test','ci-c@example.test','active',now(),'ci-v1',now());
+          INSERT INTO profiles (user_id,display_name) VALUES
+            (:'user_a','CI User A'), (:'user_b','CI User B'), (:'user_c','CI User C');
+          INSERT INTO matches (id,user_low_id,user_high_id)
+          VALUES (:'match_id',:'user_a',:'user_b');
+          INSERT INTO conversations (id,kind,match_id)
+          VALUES (:'conversation_id','match',:'match_id');
+          INSERT INTO auth_sessions (user_id,token_hash,expires_at)
+          VALUES
+            (:'user_a',:'hash_a',now() + interval '1 hour'),
+            (:'user_b',:'hash_b',now() + interval '1 hour'),
+            (:'user_c',:'hash_c',now() + interval '1 hour');
+          SQL
+          BASE_URL="http://127.0.0.1:3000"
+          test "$(curl --silent --output /tmp/send-a.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/conversations/$CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_A" -H 'Content-Type: application/json' \
+            --data '{"body":"Hello from user A"}')" = "201"
+          grep -q 'Hello from user A' /tmp/send-a.json
+          test "$(curl --silent --output /tmp/history-b.json --write-out '%{http_code}' \
+            "$BASE_URL/api/conversations/$CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_B")" = "200"
+          grep -q 'Hello from user A' /tmp/history-b.json
+          test "$(curl --silent --output /tmp/send-b.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/conversations/$CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_B" -H 'Content-Type: application/json' \
+            --data '{"body":"Reply from user B"}')" = "201"
+          grep -q 'Reply from user B' /tmp/send-b.json
+          test "$(curl --silent --output /tmp/outsider.json --write-out '%{http_code}' \
+            "$BASE_URL/api/conversations/$CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_C")" = "404"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v user_a="$USER_A" -v user_b="$USER_B" <<'SQL'
+          INSERT INTO user_blocks (blocker_id,blocked_id) VALUES (:'user_a',:'user_b');
+          SQL
+          test "$(curl --silent --output /tmp/blocked.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/conversations/$CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_B" -H 'Content-Type: application/json' \
+            --data '{"body":"This must be blocked"}')" = "404"
+          echo "Authenticated messaging integration tests passed."
