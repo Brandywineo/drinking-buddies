@@ -97,7 +97,8 @@ export async function initiateStkPush(input: {
   const timestamp = darajaTimestamp()
   const password = Buffer.from(`${config.shortcode}${config.passkey}${timestamp}`).toString('base64')
   const phone = normalizeMpesaPhone(input.phone)
-  const amount = Math.ceil(input.amountMinor / 100)
+  if (input.amountMinor % 100 !== 0) throw new Error('M-PESA KES payments must be whole shillings')
+  const amount = input.amountMinor / 100
   if (!Number.isSafeInteger(amount) || amount < 1) throw new Error('Invalid STK Push amount')
 
   const result = await postDaraja('/mpesa/stkpush/v1/processrequest', {

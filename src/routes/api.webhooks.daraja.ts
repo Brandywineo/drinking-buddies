@@ -30,13 +30,17 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
 
       const db = getDb()
       const eventId = `stk:${checkoutId}:${callback.ResultCode ?? 'unknown'}`
-      const [event] = await db.insert(paymentWebhookEvents).values({
+      const [insertedEvent] = await db.insert(paymentWebhookEvents).values({
         provider: 'daraja',
         providerEventId: eventId,
         eventType: 'stk_callback',
         payload: payload as Record<string, unknown>,
       }).onConflictDoNothing().returning()
-      if (!event) return Response.json({ ResultCode: 0, ResultDesc: 'Duplicate callback accepted' })
+      const [event] = insertedEvent ? [insertedEvent] : await db.select().from(paymentWebhookEvents).where(and(
+        eq(paymentWebhookEvents.provider, 'daraja'),
+        eq(paymentWebhookEvents.providerEventId, eventId),
+      )).limit(1)
+      if (!event || event.processedAt) return Response.json({ ResultCode: 0, ResultDesc: 'Duplicate callback accepted' })
 
       try {
         const [payment] = await db.select().from(payments).where(and(
