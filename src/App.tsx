@@ -4,7 +4,8 @@ import {
   MapPin, MessageCircle, Plus, Search, ShieldCheck, SlidersHorizontal,
   Sparkles, Users, Wine, X,
 } from 'lucide-react'
-import { meetups, venues } from './data/demo'
+import { venues } from './data/demo'
+import { Meetups } from './Meetups'
 import { Messaging } from './Messaging'
 
 type Tab = 'discover' | 'meetups' | 'places' | 'messages'
@@ -40,7 +41,6 @@ function App() {
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('All areas')
   const [showFilters, setShowFilters] = useState(false)
-  const [showCreate, setShowCreate] = useState(false)
   const [showProfileForm, setShowProfileForm] = useState(false)
   const [toast, setToast] = useState('')
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading')
@@ -208,7 +208,7 @@ function App() {
         <div className="sidebar-label">YOUR SPACE</div>
         <nav className="side-nav" aria-label="Main navigation">
           <NavButton active={tab === 'discover'} onClick={() => setTab('discover')} icon={<Compass size={19} />} label="Discover" />
-          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" count={String(meetups.length)} />
+          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups"  />
           <NavButton active={tab === 'places'} onClick={() => setTab('places')} icon={<MapPin size={19} />} label="Places & events" />
           <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" />
         </nav>
@@ -236,19 +236,19 @@ function App() {
         <div className="content-wrap">
           <section className="welcome-row">
             <div><div className="eyebrow"><span className="live-dot" /> YOUR CITY, YOUR PEOPLE</div><h1>Good company is <em>closer</em> than you think.</h1><p className="welcome-copy">Find your people, make a plan, and see where the night takes you.</p></div>
-            <button className="primary-button create-button" onClick={() => setShowCreate(true)}><Plus size={18} /> Create a meetup</button>
+            <button className="primary-button create-button" onClick={() => setTab('meetups')}><Plus size={18} /> Create a meetup</button>
           </section>
 
           <section className="quick-stats">
             <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>{profiles.length}</b><small>people in your feed</small></span></div>
-            <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>{meetups.length}</b><small>sample meetups</small></span></div>
+            <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>Live</b><small>community meetups</small></span></div>
             <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>{venues.length}</b><small>sample venues</small></span></div>
             <div className="stat stat-note"><span className="online-avatars"><i>M</i><i>B</i><i>N</i></span><span><b>People are making plans</b><small>See what’s happening around you</small></span></div>
           </section>
 
           <div className="section-tabs" role="tablist" aria-label="Discovery sections">
             <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
-            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups <span>{meetups.length}</span></button>
+            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups</button>
             <button role="tab" aria-selected={tab === 'places'} className={tab === 'places' ? 'selected' : ''} onClick={() => setTab('places')}>Places & events</button>
           </div>
 
@@ -267,7 +267,7 @@ function App() {
             </>}
           </>}
 
-          {tab === 'meetups' && <><div className="section-heading"><div><div className="eyebrow">MAKE A PLAN</div><h2>Meetups around you</h2><p>Join a group or start something of your own.</p></div><button className="primary-button" onClick={() => setShowCreate(true)}><Plus size={17} /> New meetup</button></div><div className="meetup-grid">{meetups.map((meetup) => <article className="meetup-card" key={meetup.id}><div className="meetup-image" style={{ backgroundImage: `url(${meetup.image})` }}><span className="meetup-area"><MapPin size={13} /> {meetup.area}</span></div><div className="meetup-content"><span className="eyebrow">COMMUNITY MEETUP</span><h3>{meetup.title}</h3><p>{meetup.detail}</p><div className="meetup-meta"><span><CalendarDays size={14} /> {meetup.time}</span><span><Users size={14} /> {meetup.people}</span></div><div className="meetup-footer"><span>{meetup.spots}</span><button onClick={() => notify('Sign in to request to join this meetup.')}>View meetup <ArrowRight size={14} /></button></div></div></article>)}</div></>}
+          {tab === 'meetups' && <Meetups currentUserId={currentUser?.id ?? null} signedIn={authStatus === 'signed_in'} onSignIn={() => window.location.assign('/login')} onOpenMessages={() => setTab('messages')} />}
 
           {tab === 'places' && <><div className="section-heading"><div><div className="eyebrow">EXPLORE YOUR CITY</div><h2>Places worth knowing</h2><p>Discover local venues and community events.</p></div><button className="filter-button" onClick={() => notify('Venue submissions will open soon.')}>List your venue <ArrowRight size={15} /></button></div><div className="venue-grid">{venues.map((venue) => <article className="venue-card" key={venue.name}><div className="venue-image" style={{ backgroundImage: `url(${venue.image})` }} /><div className="venue-content"><span>{venue.type}</span><h3>{venue.name}</h3><p><MapPin size={14} /> {venue.area}, Nairobi</p><button onClick={() => notify('Venue details will be available soon.')}>Explore venue <ArrowRight size={14} /></button></div></article>)}</div><div className="venue-cta"><div><span className="eyebrow">FOR LOCAL BUSINESSES</span><h3>Bring your venue to the community.</h3><p>Get discovered by people looking for somewhere to meet.</p></div><button className="primary-button" onClick={() => notify('Venue registration is coming soon.')}>Register your venue <ArrowRight size={15} /></button></div></>}
 
@@ -288,7 +288,7 @@ function App() {
         <button className="primary-button modal-submit" type="submit" disabled={profileBusy}>{profileBusy ? 'Saving profile…' : 'Save profile'}</button>
         <p className="form-note"><ShieldCheck size={14} /> You control what you share. Exact GPS location is not collected by this profile form.</p>
       </form></div></div>}
-      {showCreate && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowCreate(false) }}><div className="modal"><div className="modal-head"><div><span className="eyebrow">BRING PEOPLE TOGETHER</span><h2>Create a meetup</h2></div><button className="icon-button" onClick={() => setShowCreate(false)}><X size={19} /></button></div><form onSubmit={(e) => { e.preventDefault(); setShowCreate(false); notify('Meetup draft saved. Sign in to publish it.') }}><label>Meetup name<input required placeholder="e.g. Friday after-work unwind" /></label><label>Area or venue<input required placeholder="e.g. Westlands, Nairobi" /></label><div className="form-row"><label>Date<input type="date" required /></label><label>Time<input type="time" required /></label></div><label>Who can join<select><option>Anyone can request to join</option><option>Approval required</option></select></label><label>What’s the plan?<textarea rows={3} placeholder="Tell people what kind of meetup you're planning..." /></label><button className="primary-button modal-submit" type="submit">Continue <ArrowRight size={16} /></button><p className="form-note"><ShieldCheck size={14} /> Meetups should be public, consensual and welcoming. Never share someone's private location.</p></form></div></div>}
+
       {toast && <div className="toast"><Check size={16} /> {toast}</div>}
       <div className="mobile-nav"><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
     </div>
