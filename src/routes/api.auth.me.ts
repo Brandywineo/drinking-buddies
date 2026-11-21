@@ -3,7 +3,7 @@ import { and, eq, gt } from 'drizzle-orm'
 import { getDb } from '../db'
 import { authSessions, profiles, users } from '../db/schema'
 import { hashToken } from '../lib/crypto'
-import { jsonError, jsonOk } from '../lib/http'
+import { jsonError } from '../lib/http'
 
 function readCookie(request: Request, name: string) {
   const cookie = request.headers.get('cookie') ?? ''
