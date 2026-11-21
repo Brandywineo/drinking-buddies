@@ -94,15 +94,15 @@ Implemented in this branch:
 Still to implement:
 - Google OAuth and phone OTP provider integrations.
 - Rate limiting, abuse controls and production security review for auth endpoints.
-- Persistent profile editing and profile photo storage.
-- Profile persistence, gender-preference compatibility filtering, area-filtered discovery, pass/like actions and mutual-match creation. Discovery is currently area-based, not GPS-distance-based.
+- Profile photo storage and richer profile editing.
+- Persistent profile editing, gender-preference compatibility filtering, area-filtered discovery, pass/like actions and mutual-match creation. The discovery UI now uses authenticated API data rather than demo people. Discovery is area-based, not GPS-distance-based.
 - Conversation membership authorization and real-time chat delivery.
 - Meetup CRUD, approvals and group conversation membership.
 - Venue self-registration, admin approval UI and admin-configurable package management.
 - M-Pesa Daraja integration and payment callback verification.
 - Admin dashboard, moderation tooling and analytics.
 
-The UI currently contains illustrative demo profiles and venues. Do not treat demo data as real users or real-time availability.
+The meetup and venue sections still contain illustrative demo data. Do not treat those entries as real users, confirmed events or real-time venue availability.
 
 ## Security and operations
 
