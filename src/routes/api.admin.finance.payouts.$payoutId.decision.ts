@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../../../db'
-import { hostPayouts, hostWalletAccounts, hostWalletTransactions } from '../../../../db/schema'
-import { getAdminUserId } from '../../../../lib/admin'
-import { jsonError, jsonOk } from '../../../../lib/http'
-import { initiateB2CPayout } from '../../../../lib/daraja'
+import { getDb } from '../db'
+import { hostPayouts, hostWalletAccounts, hostWalletTransactions } from '../db/schema'
+import { getAdminUserId } from '../lib/admin'
+import { jsonError, jsonOk } from '../lib/http'
+import { initiateB2CPayout } from '../lib/daraja'
 
 const paramsSchema = z.object({ payoutId: z.string().uuid() })
 const bodySchema = z.object({ decision: z.enum(['approve', 'reject']), reason: z.string().trim().max(500).optional() }).strict()
@@ -49,10 +49,17 @@ export const Route = createFileRoute('/api/admin/finance/payouts/$payoutId/decis
         return jsonOk({ payoutId: payout.id, status: 'rejected' })
       }
 
-      await db.update(hostPayouts).set({
-        status: 'processing', reviewedBy: adminId, reviewedAt: new Date(),
-        metadata: { ...payout.metadata, submissionStartedAt: new Date().toISOString() }, updatedAt: new Date(),
-      }).where(and(eq(hostPayouts.id, payout.id), eq(hostPayouts.status, 'requested')))
+      const claimed = await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT id FROM host_payouts WHERE id = ${payout.id} FOR UPDATE`)
+        const [locked] = await tx.select().from(hostPayouts).where(eq(hostPayouts.id, payout.id)).limit(1)
+        if (!locked || locked.status !== 'requested') return false
+        await tx.update(hostPayouts).set({
+          status: 'processing', reviewedBy: adminId, reviewedAt: new Date(),
+          metadata: { ...locked.metadata, submissionStartedAt: new Date().toISOString() }, updatedAt: new Date(),
+        }).where(eq(hostPayouts.id, payout.id))
+        return true
+      })
+      if (!claimed) return jsonError('This payout has already been reviewed or submitted.', 409, 'PAYOUT_ALREADY_REVIEWED')
       try {
         const result = await initiateB2CPayout({
           phone: payout.destinationReference ?? '',
