@@ -122,7 +122,7 @@ export const meetups = pgTable('meetups', {
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
   endsAt: timestamp('ends_at', { withTimezone: true }),
   area: varchar('area', { length: 160 }).notNull(),
-  venueId: uuid('venue_id'),
+  venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
   location: geometry('location', { type: 'point', mode: 'xy', srid: 4326 }),
   visibility: meetupVisibility('visibility').notNull().default('approval_required'),
   capacity: integer('capacity').notNull().default(8),
