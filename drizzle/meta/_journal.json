@@ -2,9 +2,40 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    { "idx": 0, "version": "7", "when": 1795305600000, "tag": "0000_initial", "breakpoints": true },
-    { "idx": 1, "version": "7", "when": 1795392000000, "tag": "0001_social_graph", "breakpoints": true },
-    { "idx": 2, "version": "7", "when": 1795478400000, "tag": "0002_venue_pricing_defaults", "breakpoints": true },
-    { "idx": 3, "version": "7", "when": 1795564800000, "tag": "0003_profile_passes", "breakpoints": true }
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795305600000,
+      "tag": "0000_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795392000000,
+      "tag": "0001_social_graph",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795478400000,
+      "tag": "0002_venue_pricing_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795564800000,
+      "tag": "0003_profile_passes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795288551959,
+      "tag": "0004_paid_meetup_marketplace",
+      "breakpoints": true
+    }
   ]
 }
