@@ -66,7 +66,7 @@ async function claimNextJob(): Promise<EmailJob | null> {
     const rows = await transaction`
       SELECT id, recipient, template_key, payload, attempts
       FROM email_outbox
-      WHERE status = 'queued' AND next_attempt_at <= now()
+      WHERE (status = 'queued' AND next_attempt_at <= now())\n         OR (status = 'processing' AND updated_at < now() - interval '10 minutes')
       ORDER BY created_at ASC
       LIMIT 1
       FOR UPDATE SKIP LOCKED
