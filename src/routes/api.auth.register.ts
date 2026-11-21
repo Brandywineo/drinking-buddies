@@ -38,7 +38,7 @@ export const Route = createFileRoute('/api/auth/register')({
         const token = createOpaqueToken()
         const tokenHash = hashToken(token)
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24)
-        const verificationUrl = new URL('/api/auth/verify-email', process.env.APP_URL ?? 'http://localhost:3000')
+        const verificationUrl = new URL('/verify-email', process.env.APP_URL ?? 'http://localhost:3000')
         verificationUrl.searchParams.set('token', token)
 
         try {
