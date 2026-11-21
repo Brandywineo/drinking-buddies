@@ -167,7 +167,7 @@ jobs:
           grep -q '"priceMinor":150000' /tmp/paid-meetup.json
           test "$(psql "$DATABASE_URL" -tAc "SELECT count(*) FROM host_subscriptions WHERE user_id='$USER_A' AND plan='free_trial' AND status='trialing'")" = "1"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v user_a="$USER_A" <<'SQL'
-          UPDATE host_subscriptions SET status='expired', current_period_end=now() - interval '1 second' WHERE user_id=:'user_a';
+          UPDATE host_subscriptions SET status='expired', current_period_start=now() - interval '2 seconds', current_period_end=now() - interval '1 second' WHERE user_id=:'user_a';
           SQL
           test "$(curl --silent --output /tmp/expired-paid-meetup.json --write-out '%{http_code}' \
             -X POST "$BASE_URL/api/meetups" -H "Cookie: db_session=$TOKEN_A" \
