@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { hostPayouts, hostWalletAccounts, hostWalletTransactions, platformSettings, users } from '../db/schema'
@@ -11,6 +11,12 @@ const bodySchema = z.object({ amountMinor: z.number().int().positive() }).strict
 
 export const Route = createFileRoute('/api/host/payouts')({
   server: { handlers: {
+    GET: async ({ request }) => {
+      const userId = await getAuthenticatedUserId(request)
+      if (!userId) return jsonError('Sign in to view payout requests.', 401, 'UNAUTHENTICATED')
+      const payouts = await getDb().select().from(hostPayouts).where(eq(hostPayouts.userId, userId)).orderBy(desc(hostPayouts.createdAt)).limit(50)
+      return jsonOk({ payouts })
+    },
     POST: async ({ request }) => {
       try {
         const userId = await getAuthenticatedUserId(request)
