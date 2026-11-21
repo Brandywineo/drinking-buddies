@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, count, eq, gt } from 'drizzle-orm'
+import { and, count, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { meetupMembers, meetups } from '../db/schema'
