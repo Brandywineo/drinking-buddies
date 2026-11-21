@@ -9,8 +9,8 @@ import { jsonError, jsonOk } from '../../lib/http'
 export const Route = createFileRoute('/api/auth/verify-email')({
   server: {
     handlers: {
-      GET: async ({ request }) => {
-        const token = new URL(request.url).searchParams.get('token')
+      POST: async ({ request }) => {
+        let body: unknown\n        try { body = await request.json() } catch {\n          return jsonError('Request body must be valid JSON.', 400, 'INVALID_JSON')\n        }\n        const token = z.object({ token: z.string().min(20).max(200) }).safeParse(body).success\n          ? (body as { token: string }).token\n          : null
         if (!token || !z.string().min(20).max(200).safeParse(token).success) {
           return jsonError('Verification link is invalid or expired.', 400, 'INVALID_VERIFICATION_TOKEN')
         }
