@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { platformSettings } from '../db/schema'
