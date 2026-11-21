@@ -1,14 +1,24 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
+--> statement-breakpoint
 
 CREATE TYPE account_status AS ENUM ('pending_verification', 'active', 'suspended', 'deleted');
+--> statement-breakpoint
 CREATE TYPE connection_intent AS ENUM ('drinking_buddies', 'friendship', 'social_and_dating', 'group_outings');
+--> statement-breakpoint
 CREATE TYPE location_visibility AS ENUM ('private', 'matches', 'public');
+--> statement-breakpoint
 CREATE TYPE meetup_visibility AS ENUM ('public', 'approval_required', 'private');
+--> statement-breakpoint
 CREATE TYPE meetup_member_status AS ENUM ('requested', 'approved', 'declined', 'left', 'removed');
+--> statement-breakpoint
 CREATE TYPE venue_approval_status AS ENUM ('pending', 'approved', 'rejected', 'suspended');
+--> statement-breakpoint
 CREATE TYPE subscription_status AS ENUM ('trialing', 'active', 'past_due', 'cancelled', 'expired');
+--> statement-breakpoint
 CREATE TYPE payment_status AS ENUM ('pending', 'succeeded', 'failed', 'reversed');
+--> statement-breakpoint
 CREATE TYPE outbox_status AS ENUM ('queued', 'processing', 'sent', 'failed');
+--> statement-breakpoint
 
 CREATE TABLE users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -24,9 +34,13 @@ CREATE TABLE users (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX users_email_normalized_uq ON users(email_normalized);
+--> statement-breakpoint
 CREATE UNIQUE INDEX users_phone_e164_uq ON users(phone_e164);
+--> statement-breakpoint
 CREATE INDEX users_status_idx ON users(status);
+--> statement-breakpoint
 
 CREATE TABLE profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,8 +57,11 @@ CREATE TABLE profiles (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX profiles_user_id_uq ON profiles(user_id);
+--> statement-breakpoint
 CREATE INDEX profiles_discoverable_idx ON profiles(discoverable);
+--> statement-breakpoint
 
 CREATE TABLE auth_identities (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -54,8 +71,11 @@ CREATE TABLE auth_identities (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX auth_identities_provider_account_uq ON auth_identities(provider, provider_account_id);
+--> statement-breakpoint
 CREATE INDEX auth_identities_user_idx ON auth_identities(user_id);
+--> statement-breakpoint
 
 CREATE TABLE auth_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -66,9 +86,13 @@ CREATE TABLE auth_sessions (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX auth_sessions_token_hash_uq ON auth_sessions(token_hash);
+--> statement-breakpoint
 CREATE INDEX auth_sessions_user_idx ON auth_sessions(user_id);
+--> statement-breakpoint
 CREATE INDEX auth_sessions_expires_idx ON auth_sessions(expires_at);
+--> statement-breakpoint
 
 CREATE TABLE email_verifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -79,8 +103,11 @@ CREATE TABLE email_verifications (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX email_verifications_token_hash_uq ON email_verifications(token_hash);
+--> statement-breakpoint
 CREATE INDEX email_verifications_user_idx ON email_verifications(user_id);
+--> statement-breakpoint
 
 CREATE TABLE matches (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -90,9 +117,13 @@ CREATE TABLE matches (
   ended_at timestamptz,
   CONSTRAINT matches_distinct_users_ck CHECK (user_low_id <> user_high_id)
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX matches_pair_uq ON matches(user_low_id, user_high_id);
+--> statement-breakpoint
 CREATE INDEX matches_user_low_idx ON matches(user_low_id);
+--> statement-breakpoint
 CREATE INDEX matches_user_high_idx ON matches(user_high_id);
+--> statement-breakpoint
 
 CREATE TABLE venues (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -112,9 +143,13 @@ CREATE TABLE venues (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE INDEX venues_owner_idx ON venues(owner_id);
+--> statement-breakpoint
 CREATE INDEX venues_approval_idx ON venues(approval_status);
+--> statement-breakpoint
 CREATE INDEX venues_location_gist_idx ON venues USING gist(location);
+--> statement-breakpoint
 
 CREATE TABLE meetups (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -132,9 +167,13 @@ CREATE TABLE meetups (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE INDEX meetups_starts_at_idx ON meetups(starts_at);
+--> statement-breakpoint
 CREATE INDEX meetups_host_idx ON meetups(host_id);
+--> statement-breakpoint
 CREATE INDEX meetups_location_gist_idx ON meetups USING gist(location);
+--> statement-breakpoint
 
 CREATE TABLE meetup_members (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -145,8 +184,11 @@ CREATE TABLE meetup_members (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX meetup_members_meetup_user_uq ON meetup_members(meetup_id, user_id);
+--> statement-breakpoint
 CREATE INDEX meetup_members_user_idx ON meetup_members(user_id);
+--> statement-breakpoint
 
 CREATE TABLE venue_packages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -161,7 +203,9 @@ CREATE TABLE venue_packages (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE INDEX venue_packages_active_idx ON venue_packages(is_active, sort_order);
+--> statement-breakpoint
 
 CREATE TABLE venue_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -177,8 +221,11 @@ CREATE TABLE venue_subscriptions (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE INDEX venue_subscriptions_venue_idx ON venue_subscriptions(venue_id);
+--> statement-breakpoint
 CREATE INDEX venue_subscriptions_status_idx ON venue_subscriptions(status);
+--> statement-breakpoint
 
 CREATE TABLE payments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -196,9 +243,13 @@ CREATE TABLE payments (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX payments_idempotency_key_uq ON payments(idempotency_key);
+--> statement-breakpoint
 CREATE UNIQUE INDEX payments_provider_reference_uq ON payments(provider, provider_reference);
+--> statement-breakpoint
 CREATE INDEX payments_user_idx ON payments(user_id);
+--> statement-breakpoint
 
 CREATE TABLE platform_settings (
   key varchar(120) PRIMARY KEY,
@@ -207,6 +258,7 @@ CREATE TABLE platform_settings (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 
 CREATE TABLE email_outbox (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -221,4 +273,6 @@ CREATE TABLE email_outbox (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE INDEX email_outbox_status_next_idx ON email_outbox(status, next_attempt_at);
+--> statement-breakpoint
