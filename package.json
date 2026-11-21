@@ -1,27 +1,43 @@
 {
   "name": "drinking-buddies",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "typecheck": "tsc -b"
+    "build": "vite build",
+    "start": "bun .output/server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "drizzle-kit check",
+    "email:worker": "bun run scripts/email-worker.ts"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
+    "@tanstack/react-router": "^1.169.7",
+    "@tanstack/react-start": "^1.169.7",
+    "bcryptjs": "^2.4.3",
+    "drizzle-orm": "^0.44.7",
     "lucide-react": "^0.468.0",
+    "postgres": "^3.4.7",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2",
+    "nitro": "^3.0.261103-rc",
+    "nodemailer": "^6.10.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "~5.7.2",
-    "vite": "^6.0.0",
-    "tailwindcss": "^4.0.0",
-    "@vitejs/plugin-react": "^4.3.4"
+    "@vitejs/plugin-react": "^6.0.1",
+    "drizzle-kit": "^0.31.4",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "dotenv": "^16.4.7",
+    "@types/nodemailer": "^6.4.17"
   }
 }

@@ -1,40 +1,202 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   ArrowRight, Bell, CalendarDays, Check, ChevronDown, Compass, Heart,
   MapPin, MessageCircle, Plus, Search, ShieldCheck, SlidersHorizontal,
   Sparkles, Users, Wine, X,
 } from 'lucide-react'
-import { buddies, meetups, venues } from './data/demo'
+import { meetups, venues } from './data/demo'
+import { Messaging } from './Messaging'
 
 type Tab = 'discover' | 'meetups' | 'places' | 'messages'
 
+type MemberProfile = {
+  id: string
+  displayName: string
+  bio: string | null
+  gender: string | null
+  interests: string[]
+  connectionIntents: string[]
+  homeArea: string | null
+}
+type OwnProfile = {
+  displayName: string
+  bio: string | null
+  gender: string | null
+  discoverable: boolean
+  locationVisibility: 'private' | 'matches' | 'public'
+  preferredGenders: string[]
+  connectionIntents: string[]
+  interests: string[]
+  homeArea: string | null
+}
+type SessionUser = { id: string; email: string; displayName: string | null }
+const intentLabels: Record<string, string> = {
+  drinking_buddies: 'Drinking buddies', friendship: 'New friendships',
+  social_and_dating: 'Social and dating', group_outings: 'Group outings',
+}
+
 function App() {
   const [tab, setTab] = useState<Tab>('discover')
-  const [liked, setLiked] = useState<string[]>([])
-  const [passed, setPassed] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('All areas')
   const [showFilters, setShowFilters] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [showProfileForm, setShowProfileForm] = useState(false)
   const [toast, setToast] = useState('')
+  const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading')
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
+  const [profile, setProfile] = useState<OwnProfile | null>(null)
+  const [profiles, setProfiles] = useState<MemberProfile[]>([])
+  const [discoveryLoading, setDiscoveryLoading] = useState(false)
+  const [discoveryError, setDiscoveryError] = useState('')
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const [profileName, setProfileName] = useState('')
+  const [profileBio, setProfileBio] = useState('')
+  const [profileGender, setProfileGender] = useState('')
+  const [profileArea, setProfileArea] = useState('')
+  const [profileInterests, setProfileInterests] = useState('')
+  const [profileIntents, setProfileIntents] = useState<string[]>(['drinking_buddies'])
+  const [preferredGenders, setPreferredGenders] = useState<string[]>([])
+  const [locationVisibility, setLocationVisibility] = useState<'private' | 'matches' | 'public'>('private')
+  const [discoverable, setDiscoverable] = useState(true)
 
-  const visibleBuddies = useMemo(() => buddies.filter((buddy) => {
-    const matchesArea = area === 'All areas' || buddy.area === area
-    const matchesQuery = `${buddy.name} ${buddy.area} ${buddy.interests.join(' ')}`.toLowerCase().includes(query.toLowerCase())
-    return matchesArea && matchesQuery && !passed.includes(buddy.id)
-  }), [area, query, passed])
+  async function loadDiscovery(selectedArea = area) {
+    setDiscoveryLoading(true)
+    setDiscoveryError('')
+    try {
+      const params = new URLSearchParams()
+      if (selectedArea !== 'All areas') params.set('area', selectedArea)
+      const response = await fetch('/api/discovery' + (params.size ? '?' + params.toString() : ''))
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not load people.')
+      setProfiles(Array.isArray(result.data?.profiles) ? result.data.profiles : [])
+    } catch (cause) {
+      setDiscoveryError(cause instanceof Error ? cause.message : 'Could not load people.')
+    } finally {
+      setDiscoveryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+    async function bootstrap() {
+      try {
+        const sessionResponse = await fetch('/api/auth/me')
+        if (!sessionResponse.ok) {
+          if (active) setAuthStatus('signed_out')
+          return
+        }
+        const sessionResult = await sessionResponse.json()
+        const user = sessionResult.data?.user as SessionUser | undefined
+        if (!user || !active) return
+        setCurrentUser(user)
+        setAuthStatus('signed_in')
+        const profileResponse = await fetch('/api/profile')
+        const profileResult = await profileResponse.json()
+        if (!profileResponse.ok) throw new Error(profileResult.error?.message ?? 'Could not load your profile.')
+        if (!active) return
+        const ownProfile = profileResult.data?.profile as OwnProfile | null
+        setProfile(ownProfile)
+        if (ownProfile) {
+          setProfileName(ownProfile.displayName)
+          setProfileBio(ownProfile.bio ?? '')
+          setProfileGender(ownProfile.gender ?? '')
+          setProfileArea(ownProfile.homeArea ?? '')
+          setProfileInterests(ownProfile.interests.join(', '))
+          setProfileIntents(ownProfile.connectionIntents)
+          setPreferredGenders(ownProfile.preferredGenders)
+          setLocationVisibility(ownProfile.locationVisibility)
+          setDiscoverable(ownProfile.discoverable)
+          await loadDiscovery('All areas')
+        } else {
+          setProfileName(user.displayName ?? '')
+          setShowProfileForm(true)
+        }
+      } catch (cause) {
+        if (active) setDiscoveryError(cause instanceof Error ? cause.message : 'Could not load your account.')
+      }
+    }
+    void bootstrap()
+    return () => { active = false }
+  }, [])
+
+  const visibleBuddies = useMemo(() => profiles.filter((person) => {
+    const text = [person.displayName, person.homeArea ?? '', person.bio ?? '', ...person.interests].join(' ').toLowerCase()
+    return text.includes(query.toLowerCase())
+  }), [profiles, query])
 
   const notify = (message: string) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 2600)
   }
 
-  const like = (id: string) => {
-    setLiked((current) => current.includes(id) ? current : [...current, id])
-    notify('Interest sent. If they like you too, it’s a match!')
+  const like = async (id: string) => {
+    try {
+      const response = await fetch('/api/likes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not send your interest.')
+      notify(result.data?.matched ? 'It’s a match! You can now start a conversation.' : 'Interest sent. If they like you too, it’s a match!')
+      await loadDiscovery()
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : 'Could not send your interest.')
+    }
   }
 
-  const pass = (id: string) => setPassed((current) => [...current, id])
+  const pass = async (id: string) => {
+    try {
+      const response = await fetch('/api/passes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not pass on this profile.')
+      setProfiles((current) => current.filter((person) => person.id !== id))
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : 'Could not pass on this profile.')
+    }
+  }
+
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setProfileBusy(true)
+    setProfileError('')
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: profileName,
+          bio: profileBio || null,
+          gender: profileGender || null,
+          homeArea: profileArea || null,
+          interests: profileInterests.split(',').map((item) => item.trim()).filter(Boolean),
+          connectionIntents: profileIntents,
+          preferredGenders,
+          discoverable,
+          locationVisibility,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not save your profile.')
+      setProfile(result.data.profile)
+      setShowProfileForm(false)
+      notify('Your profile has been saved.')
+      await loadDiscovery()
+    } catch (cause) {
+      setProfileError(cause instanceof Error ? cause.message : 'Could not save your profile.')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
+  const signOut = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.assign('/')
+  }
 
   return (
     <div className="app-shell">
@@ -46,9 +208,9 @@ function App() {
         <div className="sidebar-label">YOUR SPACE</div>
         <nav className="side-nav" aria-label="Main navigation">
           <NavButton active={tab === 'discover'} onClick={() => setTab('discover')} icon={<Compass size={19} />} label="Discover" />
-          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" count="8" />
+          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" count={String(meetups.length)} />
           <NavButton active={tab === 'places'} onClick={() => setTab('places')} icon={<MapPin size={19} />} label="Places & events" />
-          <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" count="2" />
+          <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" />
         </nav>
         <div className="sidebar-card">
           <div className="sidebar-card-icon"><Sparkles size={17} /></div>
@@ -58,8 +220,8 @@ function App() {
         </div>
         <div className="sidebar-bottom">
           <div className="safety-note"><ShieldCheck size={16} /><span>18+ community<br /><small>Meet kindly. Stay safe.</small></span></div>
-          <button className="profile-mini" onClick={() => notify('Profile settings will be available after sign-in.')}>
-            <span className="avatar avatar-small">K</span><span><b>Your profile</b><small>Complete your profile</small></span><ChevronDown size={15} />
+          <button className="profile-mini" onClick={() => authStatus === 'signed_in' ? setShowProfileForm(true) : window.location.assign('/login')}>
+            <span className="avatar avatar-small">{(profile?.displayName ?? currentUser?.email ?? 'Y').slice(0, 1).toUpperCase()}</span><span><b>{profile?.displayName ?? 'Your profile'}</b><small>{profile ? 'Edit your profile' : 'Complete your profile'}</small></span><ChevronDown size={15} />
           </button>
         </div>
       </aside>
@@ -67,8 +229,8 @@ function App() {
       <main className="main-area" id="top">
         <header className="topbar">
           <button className="mobile-brand" onClick={() => setTab('discover')}><span className="brand-mark"><Wine size={18} /></span> drinkingbuddies</button>
-          <div className="location-pill"><MapPin size={15} /><span>Nairobi, Kenya</span><ChevronDown size={14} /></div>
-          <div className="top-actions"><button className="icon-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={19} /><i /></button><button className="top-avatar" onClick={() => notify('Sign in to manage your profile.')}>K</button></div>
+          <div className="location-pill"><MapPin size={15} /><span>{profile?.homeArea ?? "Set your area"}</span><ChevronDown size={14} /></div>
+          <div className="top-actions">{authStatus === 'signed_in' ? <button className="signin-link" onClick={signOut}>Sign out</button> : <button className="signin-link" onClick={() => window.location.assign('/login')}>Sign in</button>}<button className="icon-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={19} /><i /></button><button className="top-avatar" onClick={() => authStatus === 'signed_in' ? setShowProfileForm(true) : window.location.assign('/login')}>{(profile?.displayName ?? currentUser?.email ?? 'Y').slice(0, 1).toUpperCase()}</button></div>
         </header>
 
         <div className="content-wrap">
@@ -78,41 +240,54 @@ function App() {
           </section>
 
           <section className="quick-stats">
-            <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>24</b><small>people nearby</small></span></div>
-            <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>8</b><small>meetups this week</small></span></div>
-            <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>12</b><small>places to explore</small></span></div>
+            <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>{profiles.length}</b><small>people in your feed</small></span></div>
+            <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>{meetups.length}</b><small>sample meetups</small></span></div>
+            <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>{venues.length}</b><small>sample venues</small></span></div>
             <div className="stat stat-note"><span className="online-avatars"><i>M</i><i>B</i><i>N</i></span><span><b>People are making plans</b><small>See what’s happening around you</small></span></div>
           </section>
 
           <div className="section-tabs" role="tablist" aria-label="Discovery sections">
-            <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>24</span></button>
-            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups <span>8</span></button>
+            <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
+            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups <span>{meetups.length}</span></button>
             <button role="tab" aria-selected={tab === 'places'} className={tab === 'places' ? 'selected' : ''} onClick={() => setTab('places')}>Places & events</button>
           </div>
 
           {tab === 'discover' && <>
+            {authStatus === 'loading' ? <div className="empty-state"><b>Loading your account…</b></div> : authStatus === 'signed_out' ? <div className="empty-state"><ShieldCheck size={26} /><h2>Sign in to meet your people.</h2><p>Discover real community members, save your preferences and connect through mutual matches.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in to discover <ArrowRight size={15} /></button><p>New here? <a href="/register">Create an account</a></p></div> : !profile ? <div className="empty-state"><b>Complete your profile to get started.</b><p>Tell the community a little about yourself and set your discovery preferences.</p><button className="primary-button" onClick={() => setShowProfileForm(true)}>Set up my profile <ArrowRight size={15} /></button></div> : <>
             <section className="tonight-banner">
               <div className="tonight-copy"><span className="banner-kicker">THE CITY IS YOURS</span><h2>Who's up for<br />tonight?</h2><p>Find people who are free, nearby and in the mood to connect.</p><button className="banner-button" onClick={() => setTab('meetups')}>Explore tonight’s meetups <ArrowRight size={15} /></button></div>
-              <div className="banner-image"><div className="banner-image-overlay" /><div className="floating-tag"><span className="live-dot" /> 12 people looking tonight</div></div>
+              <div className="banner-image"><div className="banner-image-overlay" /><div className="floating-tag"><span className="live-dot" /> Find your next connection</div></div>
               <div className="banner-orb orb-one" /><div className="banner-orb orb-two" />
             </section>
             <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>People near you</h2><p>Say hello to someone new. Match first, then chat.</p></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div>
-            {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => setArea(e.target.value)}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery('') }}>Clear</button></div>}
-            <div className="people-grid">{visibleBuddies.map((buddy) => <article className="person-card" key={buddy.id}><div className="person-photo" style={{ backgroundImage: `url(${buddy.image})` }}><span className="availability"><i /> {buddy.available}</span><button className={`heart-button ${liked.includes(buddy.id) ? 'hearted' : ''}`} aria-label={`Like ${buddy.name}`} onClick={() => like(buddy.id)}><Heart size={18} fill={liked.includes(buddy.id) ? 'currentColor' : 'none'} /></button><div className="photo-gradient" /><div className="person-title"><h3>{buddy.name}, {buddy.age}</h3><span><MapPin size={13} /> {buddy.area} · {buddy.distance}</span></div></div><div className="person-info"><span className="intent-pill">{buddy.intent}</span><p>{buddy.bio}</p><div className="interest-tags">{buddy.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => pass(buddy.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => like(buddy.id)}><Heart size={15} /> {liked.includes(buddy.id) ? 'Interested' : 'Say hello'}</button></div></div></article>)}</div>
-            {visibleBuddies.length === 0 && <div className="empty-state"><Search size={24} /><b>No profiles found</b><span>Try another area or clear your search.</span></div>}
-            <div className="privacy-strip"><ShieldCheck size={18} /><span><b>Your location stays yours.</b> People see only the area or meetup location you choose to share.</span><button onClick={() => notify('Location privacy settings will be available in your profile.')}>Privacy settings</button></div>
+            {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => { setArea(e.target.value); void loadDiscovery(e.target.value) }}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option><option>Riverside</option><option>Parklands</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery(''); void loadDiscovery('All areas') }}>Clear</button></div>}
+            {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id}><div className="person-photo" style={{ backgroundImage: 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span><p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
+            {!discoveryLoading && !discoveryError && visibleBuddies.length === 0 && <div className="empty-state"><Search size={24} /><b>No community profiles to show yet</b><span>Try another area, or check back as more people complete their profiles.</span></div>}
+            <div className="privacy-strip"><ShieldCheck size={18} /><span><b>Your location stays yours.</b> People see only the area or meetup location you choose to share.</span><button onClick={() => setShowProfileForm(true)}>Privacy settings</button></div>
+            </>}
           </>}
 
           {tab === 'meetups' && <><div className="section-heading"><div><div className="eyebrow">MAKE A PLAN</div><h2>Meetups around you</h2><p>Join a group or start something of your own.</p></div><button className="primary-button" onClick={() => setShowCreate(true)}><Plus size={17} /> New meetup</button></div><div className="meetup-grid">{meetups.map((meetup) => <article className="meetup-card" key={meetup.id}><div className="meetup-image" style={{ backgroundImage: `url(${meetup.image})` }}><span className="meetup-area"><MapPin size={13} /> {meetup.area}</span></div><div className="meetup-content"><span className="eyebrow">COMMUNITY MEETUP</span><h3>{meetup.title}</h3><p>{meetup.detail}</p><div className="meetup-meta"><span><CalendarDays size={14} /> {meetup.time}</span><span><Users size={14} /> {meetup.people}</span></div><div className="meetup-footer"><span>{meetup.spots}</span><button onClick={() => notify('Sign in to request to join this meetup.')}>View meetup <ArrowRight size={14} /></button></div></div></article>)}</div></>}
 
           {tab === 'places' && <><div className="section-heading"><div><div className="eyebrow">EXPLORE YOUR CITY</div><h2>Places worth knowing</h2><p>Discover local venues and community events.</p></div><button className="filter-button" onClick={() => notify('Venue submissions will open soon.')}>List your venue <ArrowRight size={15} /></button></div><div className="venue-grid">{venues.map((venue) => <article className="venue-card" key={venue.name}><div className="venue-image" style={{ backgroundImage: `url(${venue.image})` }} /><div className="venue-content"><span>{venue.type}</span><h3>{venue.name}</h3><p><MapPin size={14} /> {venue.area}, Nairobi</p><button onClick={() => notify('Venue details will be available soon.')}>Explore venue <ArrowRight size={14} /></button></div></article>)}</div><div className="venue-cta"><div><span className="eyebrow">FOR LOCAL BUSINESSES</span><h3>Bring your venue to the community.</h3><p>Get discovered by people looking for somewhere to meet.</p></div><button className="primary-button" onClick={() => notify('Venue registration is coming soon.')}>Register your venue <ArrowRight size={15} /></button></div></>}
 
-          {tab === 'messages' && <div className="empty-state messages-empty"><MessageCircle size={28} /><h2>Your conversations start with a match.</h2><p>When you and another person both show interest, you can start chatting here.</p><button className="primary-button" onClick={() => setTab('discover')}>Discover people <ArrowRight size={15} /></button></div>}
+          {tab === 'messages' && (authStatus === 'signed_in' ? <Messaging currentUserId={currentUser?.id ?? ''} /> : <div className="empty-state messages-empty"><MessageCircle size={28} /><h2>Sign in to view your messages.</h2><p>Your conversations are private and available after you sign in.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in <ArrowRight size={15} /></button></div>)}
 
           <footer className="footer"><span>© 2026 Drinking Buddies</span><span>18+ only · Meet kindly · Stay safe</span><span>Kenya first. Everywhere next.</span></footer>
         </div>
       </main>
 
+      {showProfileForm && authStatus === 'signed_in' && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && profile) setShowProfileForm(false) }}><div className="modal"><div className="modal-head"><div><span className="eyebrow">YOUR COMMUNITY PROFILE</span><h2>{profile ? 'Edit your profile' : 'Set up your profile'}</h2></div>{profile && <button className="icon-button" onClick={() => setShowProfileForm(false)}><X size={19} /></button>}</div>{profileError && <div className="auth-error">{profileError}</div>}<form onSubmit={saveProfile}>
+        <label>Display name<input value={profileName} onChange={(e) => setProfileName(e.target.value)} minLength={2} maxLength={48} required placeholder="What should people call you?" /></label>
+        <label>About you<textarea rows={3} value={profileBio} onChange={(e) => setProfileBio(e.target.value)} maxLength={500} placeholder="A little about the people and plans you enjoy…" /></label>
+        <div className="form-row"><label>Gender<input value={profileGender} onChange={(e) => setProfileGender(e.target.value)} maxLength={32} placeholder="Optional" /></label><label>Home area<input value={profileArea} onChange={(e) => setProfileArea(e.target.value)} maxLength={120} placeholder="e.g. Westlands" /></label></div>
+        <label>Interests<input value={profileInterests} onChange={(e) => setProfileInterests(e.target.value)} placeholder="Live music, food, football…" /><small>Separate interests with commas.</small></label>
+        <label>What are you looking for?<select value={profileIntents[0] ?? 'drinking_buddies'} onChange={(e) => setProfileIntents([e.target.value])}><option value="drinking_buddies">Drinking buddies</option><option value="friendship">New friendships</option><option value="social_and_dating">Social and dating</option><option value="group_outings">Group outings</option></select></label>
+        <label>Who would you like to discover?<input value={preferredGenders.join(', ')} onChange={(e) => setPreferredGenders(e.target.value.split(',').map((item) => item.trim()).filter(Boolean))} placeholder="Leave blank for everyone" /><small>Optional. Enter preferences separated by commas.</small></label>
+        <label>Home area visibility<select value={locationVisibility} onChange={(e) => setLocationVisibility(e.target.value as 'private' | 'matches' | 'public')}><option value="private">Private — only used for filtering</option><option value="matches">Matches only</option><option value="public">Public — shown on my profile card</option></select></label>
+        <button className="primary-button modal-submit" type="submit" disabled={profileBusy}>{profileBusy ? 'Saving profile…' : 'Save profile'}</button>
+        <p className="form-note"><ShieldCheck size={14} /> You control what you share. Exact GPS location is not collected by this profile form.</p>
+      </form></div></div>}
       {showCreate && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowCreate(false) }}><div className="modal"><div className="modal-head"><div><span className="eyebrow">BRING PEOPLE TOGETHER</span><h2>Create a meetup</h2></div><button className="icon-button" onClick={() => setShowCreate(false)}><X size={19} /></button></div><form onSubmit={(e) => { e.preventDefault(); setShowCreate(false); notify('Meetup draft saved. Sign in to publish it.') }}><label>Meetup name<input required placeholder="e.g. Friday after-work unwind" /></label><label>Area or venue<input required placeholder="e.g. Westlands, Nairobi" /></label><div className="form-row"><label>Date<input type="date" required /></label><label>Time<input type="time" required /></label></div><label>Who can join<select><option>Anyone can request to join</option><option>Approval required</option></select></label><label>What’s the plan?<textarea rows={3} placeholder="Tell people what kind of meetup you're planning..." /></label><button className="primary-button modal-submit" type="submit">Continue <ArrowRight size={16} /></button><p className="form-note"><ShieldCheck size={14} /> Meetups should be public, consensual and welcoming. Never share someone's private location.</p></form></div></div>}
       {toast && <div className="toast"><Check size={16} /> {toast}</div>}
       <div className="mobile-nav"><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
