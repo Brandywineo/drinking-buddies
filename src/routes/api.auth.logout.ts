@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
-import { getDb } from '../../db'
-import { authSessions } from '../../db/schema'
-import { hashToken } from '../../lib/crypto'
-import { jsonOk } from '../../lib/http'
+import { getDb } from '../db'
+import { authSessions } from '../db/schema'
+import { hashToken } from '../lib/crypto'
+import { jsonOk } from '../lib/http'
 
 function readCookie(request: Request, name: string) {
   const cookie = request.headers.get('cookie') ?? ''
