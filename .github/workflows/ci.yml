@@ -158,3 +158,18 @@ jobs:
             "$BASE_URL/api/conversations/$GROUP_CONVERSATION_ID/messages" \
             -H "Cookie: db_session=$TOKEN_C")" = "404"
           echo "Meetup creation, approval, membership and group chat integration tests passed."
+
+          PAID_MEETUP_PAYLOAD="$(jq -n --arg title "CI paid meetup workflow" --arg area "Westlands, Nairobi" --arg startsAt "$STARTS_AT" '{title:$title,area:$area,startsAt:$startsAt,capacity:10,visibility:"public",pricingType:"paid",priceMinor:150000,currency:"KES",refundPolicy:{kind:"host_policy",refundBeforeHours:24,refundPercentage:100}}')"
+          test "$(curl --silent --output /tmp/paid-meetup.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/meetups" -H "Cookie: db_session=$TOKEN_A" \
+            -H 'Content-Type: application/json' --data "$PAID_MEETUP_PAYLOAD")" = "201"
+          grep -q '"pricingType":"paid"' /tmp/paid-meetup.json
+          grep -q '"priceMinor":150000' /tmp/paid-meetup.json
+          test "$(psql "$DATABASE_URL" -tAc "SELECT count(*) FROM host_subscriptions WHERE user_id='$USER_A' AND plan='free_trial' AND status='trialing'")" = "1"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v user_a="$USER_A" <<'SQL'
+          UPDATE host_subscriptions SET status='expired', current_period_end=now() - interval '1 second' WHERE user_id=:'user_a';
+          SQL
+          test "$(curl --silent --output /tmp/expired-paid-meetup.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/meetups" -H "Cookie: db_session=$TOKEN_A" \
+            -H 'Content-Type: application/json' --data "$PAID_MEETUP_PAYLOAD")" = "403"
+          echo "Paid meetup pricing, one-time free trial and expired-membership gate tests passed."
