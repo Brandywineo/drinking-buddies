@@ -5,6 +5,7 @@ import {
   Sparkles, Users, Wine, X,
 } from 'lucide-react'
 import { meetups, venues } from './data/demo'
+import { Messaging } from './Messaging'
 
 type Tab = 'discover' | 'meetups' | 'places' | 'messages'
 
@@ -209,7 +210,7 @@ function App() {
           <NavButton active={tab === 'discover'} onClick={() => setTab('discover')} icon={<Compass size={19} />} label="Discover" />
           <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" count={String(meetups.length)} />
           <NavButton active={tab === 'places'} onClick={() => setTab('places')} icon={<MapPin size={19} />} label="Places & events" />
-          <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" count="2" />
+          <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" />
         </nav>
         <div className="sidebar-card">
           <div className="sidebar-card-icon"><Sparkles size={17} /></div>
@@ -270,7 +271,7 @@ function App() {
 
           {tab === 'places' && <><div className="section-heading"><div><div className="eyebrow">EXPLORE YOUR CITY</div><h2>Places worth knowing</h2><p>Discover local venues and community events.</p></div><button className="filter-button" onClick={() => notify('Venue submissions will open soon.')}>List your venue <ArrowRight size={15} /></button></div><div className="venue-grid">{venues.map((venue) => <article className="venue-card" key={venue.name}><div className="venue-image" style={{ backgroundImage: `url(${venue.image})` }} /><div className="venue-content"><span>{venue.type}</span><h3>{venue.name}</h3><p><MapPin size={14} /> {venue.area}, Nairobi</p><button onClick={() => notify('Venue details will be available soon.')}>Explore venue <ArrowRight size={14} /></button></div></article>)}</div><div className="venue-cta"><div><span className="eyebrow">FOR LOCAL BUSINESSES</span><h3>Bring your venue to the community.</h3><p>Get discovered by people looking for somewhere to meet.</p></div><button className="primary-button" onClick={() => notify('Venue registration is coming soon.')}>Register your venue <ArrowRight size={15} /></button></div></>}
 
-          {tab === 'messages' && <div className="empty-state messages-empty"><MessageCircle size={28} /><h2>Your conversations start with a match.</h2><p>When you and another person both show interest, you can start chatting here.</p><button className="primary-button" onClick={() => setTab('discover')}>Discover people <ArrowRight size={15} /></button></div>}
+          {tab === 'messages' && (authStatus === 'signed_in' ? <Messaging currentUserId={currentUser?.id ?? ''} /> : <div className="empty-state messages-empty"><MessageCircle size={28} /><h2>Sign in to view your messages.</h2><p>Your conversations are private and available after you sign in.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in <ArrowRight size={15} /></button></div>)}
 
           <footer className="footer"><span>© 2026 Drinking Buddies</span><span>18+ only · Meet kindly · Stay safe</span><span>Kenya first. Everywhere next.</span></footer>
         </div>
