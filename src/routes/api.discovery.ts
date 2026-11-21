@@ -24,6 +24,7 @@ export const Route = createFileRoute('/api/discovery')({
         id: users.id, displayName: profiles.displayName, bio: profiles.bio, gender: profiles.gender,
         preferredGenders: profiles.preferredGenders, interests: profiles.interests,
         connectionIntents: profiles.connectionIntents, homeArea: profiles.homeArea,
+        locationVisibility: profiles.locationVisibility,
       }).from(profiles).innerJoin(users, eq(users.id, profiles.userId))
         .where(and(
           eq(users.status, 'active'), eq(profiles.discoverable, true), ne(users.id, userId),
@@ -48,7 +49,10 @@ export const Route = createFileRoute('/api/discovery')({
         const candidateGenderOk = candidatePrefs.length === 0 || (viewer.gender ? candidatePrefs.includes(viewer.gender) : false)
         return viewerGenderOk && candidateGenderOk
       }).slice(0, 30)
-      return jsonOk({ profiles: compatible })
+      return jsonOk({ profiles: compatible.map(({ preferredGenders: _privatePreferences, locationVisibility, ...profile }) => ({
+        ...profile,
+        homeArea: locationVisibility === 'public' ? profile.homeArea : null,
+      })) })
     } catch (error) {
       console.error('Discovery failed', error)
       return jsonError('We could not load discovery right now.', 500, 'DISCOVERY_FAILED')
