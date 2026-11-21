@@ -1,6 +1,6 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, lte, sql } from 'drizzle-orm'
 import { getDb } from '../src/db'
-import { hostWalletAccounts, hostWalletTransactions, meetupBookings, meetups, platformSettings } from '../src/db/schema'
+import { emailOutbox, hostSubscriptions, hostWalletAccounts, hostWalletTransactions, meetupBookings, meetups, platformSettings, profiles, users } from '../src/db/schema'
 
 async function main() {
   const db = getDb()
@@ -45,6 +45,34 @@ async function main() {
     })
   }
   console.info(`Marketplace release worker completed: ${released} host credits released`)
+
+  const now = new Date()
+  await db.update(hostSubscriptions).set({ status: 'expired', updatedAt: now }).where(and(
+    inArray(hostSubscriptions.status, ['trialing', 'active']),
+    lte(hostSubscriptions.currentPeriodEnd, now),
+  ))
+
+  const reminderCutoff = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+  const due = await db.select({
+    id: hostSubscriptions.id,
+    email: users.email,
+    displayName: profiles.displayName,
+    currentPeriodEnd: hostSubscriptions.currentPeriodEnd,
+  }).from(hostSubscriptions)
+    .innerJoin(users, eq(users.id, hostSubscriptions.userId))
+    .leftJoin(profiles, eq(profiles.userId, hostSubscriptions.userId))
+    .where(and(
+      inArray(hostSubscriptions.status, ['trialing', 'active']),
+      gt(hostSubscriptions.currentPeriodEnd, now),
+      lte(hostSubscriptions.currentPeriodEnd, reminderCutoff),
+    ))
+  for (const subscription of due) {
+    await db.insert(emailOutbox).values({
+      recipient: subscription.email,
+      templateKey: 'host_membership_renewal',
+      payload: { subscriptionId: subscription.id, displayName: subscription.displayName ?? 'there', renewsAt: subscription.currentPeriodEnd.toISOString() },
+    }).onConflictDoNothing()
+  }
 }
 
 main().catch((error) => {
