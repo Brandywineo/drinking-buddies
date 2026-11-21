@@ -1,5 +1,7 @@
 CREATE TYPE conversation_kind AS ENUM ('match', 'meetup');
+--> statement-breakpoint
 CREATE TYPE report_status AS ENUM ('open', 'reviewing', 'resolved', 'dismissed');
+--> statement-breakpoint
 
 CREATE TABLE profile_likes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -8,8 +10,11 @@ CREATE TABLE profile_likes (
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT profile_likes_distinct_users_ck CHECK (from_user_id <> to_user_id)
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX profile_likes_pair_uq ON profile_likes(from_user_id, to_user_id);
+--> statement-breakpoint
 CREATE INDEX profile_likes_to_user_idx ON profile_likes(to_user_id);
+--> statement-breakpoint
 
 CREATE TABLE conversations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -22,8 +27,11 @@ CREATE TABLE conversations (
     (kind = 'meetup' AND meetup_id IS NOT NULL AND match_id IS NULL)
   )
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX conversations_match_id_uq ON conversations(match_id);
+--> statement-breakpoint
 CREATE UNIQUE INDEX conversations_meetup_id_uq ON conversations(meetup_id);
+--> statement-breakpoint
 
 CREATE TABLE messages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -34,8 +42,11 @@ CREATE TABLE messages (
   edited_at timestamptz,
   deleted_at timestamptz
 );
+--> statement-breakpoint
 CREATE INDEX messages_conversation_created_idx ON messages(conversation_id, created_at);
+--> statement-breakpoint
 CREATE INDEX messages_sender_idx ON messages(sender_id);
+--> statement-breakpoint
 
 CREATE TABLE user_blocks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,7 +55,9 @@ CREATE TABLE user_blocks (
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT user_blocks_distinct_users_ck CHECK (blocker_id <> blocked_id)
 );
+--> statement-breakpoint
 CREATE UNIQUE INDEX user_blocks_pair_uq ON user_blocks(blocker_id, blocked_id);
+--> statement-breakpoint
 
 CREATE TABLE user_reports (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,5 +71,8 @@ CREATE TABLE user_reports (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+--> statement-breakpoint
 CREATE INDEX user_reports_status_created_idx ON user_reports(status, created_at);
+--> statement-breakpoint
 CREATE INDEX user_reports_reporter_idx ON user_reports(reporter_id);
+--> statement-breakpoint
