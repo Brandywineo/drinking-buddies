@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, asc, count, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, asc, count, eq, gt } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { conversations, meetupMembers, meetups, profiles } from '../db/schema'
@@ -27,7 +27,7 @@ export const Route = createFileRoute('/api/meetups')({
           startsAt: meetups.startsAt, endsAt: meetups.endsAt, area: meetups.area,
           capacity: meetups.capacity, visibility: meetups.visibility, hostId: meetups.hostId,
           hostName: profiles.displayName,
-        }).from(meetups).innerJoin(profiles, eq(profiles.userId, meetups.hostId))
+        }).from(meetups).leftJoin(profiles, eq(profiles.userId, meetups.hostId))
           .where(and(eq(meetups.status, 'published'), gt(meetups.startsAt, new Date())))
           .orderBy(asc(meetups.startsAt)).limit(100)
         const items = []
