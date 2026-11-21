@@ -241,6 +241,16 @@ export const emailOutbox = pgTable('email_outbox', {
 ])
 
 
+export const profilePasses = pgTable('profile_passes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fromUserId: uuid('from_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  toUserId: uuid('to_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('profile_passes_pair_uq').on(table.fromUserId, table.toUserId),
+  index('profile_passes_to_user_idx').on(table.toUserId),
+])
+
 export const profileLikes = pgTable('profile_likes', {
   id: uuid('id').defaultRandom().primaryKey(),
   fromUserId: uuid('from_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
