@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { meetupMembers, meetups } from '../db/schema'
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/api/meetups/$meetupId/join')({
         if (!parsed.success) return jsonError('Invalid meetup.', 400, 'INVALID_MEETUP')
         const db = getDb()
         const result = await db.transaction(async (tx) => {
+          await tx.execute(sql`SELECT id FROM meetups WHERE id = ${parsed.data.meetupId} FOR UPDATE`)
           const [meetup] = await tx.select().from(meetups).where(eq(meetups.id, parsed.data.meetupId)).limit(1)
           if (!meetup || meetup.status !== 'published' || meetup.startsAt <= new Date()) return { error: 'NOT_FOUND' as const }
           if (meetup.hostId === userId) return { error: 'HOST' as const }
