@@ -64,12 +64,16 @@ The local PostGIS container uses development-only credentials. Change them befor
 - `POST /api/auth/login` — verifies credentials and creates an HttpOnly session cookie.
 - `GET /api/auth/me` — returns the current signed-in user.
 - `POST /api/auth/logout` — revokes the current session.
+- `GET /api/profile` / `PUT /api/profile` — read or save the signed-in user's profile and discovery preferences.
+- `GET /api/discovery?area=<area>` — returns compatible discoverable profiles, excluding prior passes, outgoing likes, active matches and blocked users; selected home area is only returned when its owner sets location visibility to public.
+- `POST /api/likes` with `{ "userId": "<uuid>" }` — records a like and creates a match plus match conversation after a reciprocal like.
+- `POST /api/passes` with `{ "userId": "<uuid>" }` — records a pass so that profile is not shown again.
 
 The email worker reads the transactional outbox, uses row locking to avoid duplicate concurrent delivery, retries failures with backoff and marks exhausted jobs failed.
 
 ## Database
 
-The `drizzle/` directory contains versioned PostgreSQL migrations. The initial migration enables PostGIS and creates identity, profile, matching, meetup, venue, subscription, payment, settings and email-outbox tables. The social graph migration adds likes, conversations, messages, blocks and reports.
+The `drizzle/` directory contains versioned PostgreSQL migrations. The initial migration enables PostGIS and creates identity, profile, matching, meetup, venue, subscription, payment, settings and email-outbox tables. The social graph migrations add likes, passes, conversations, messages, blocks and reports.
 
 ```bash
 bun run db:migrate
@@ -91,7 +95,7 @@ Still to implement:
 - Google OAuth and phone OTP provider integrations.
 - Rate limiting, abuse controls and production security review for auth endpoints.
 - Persistent profile editing and profile photo storage.
-- Real swipe/like matching actions and privacy-aware proximity discovery.
+- Profile persistence, gender-preference compatibility filtering, area-filtered discovery, pass/like actions and mutual-match creation. Discovery is currently area-based, not GPS-distance-based.
 - Conversation membership authorization and real-time chat delivery.
 - Meetup CRUD, approvals and group conversation membership.
 - Venue self-registration, admin approval UI and admin-configurable package management.
