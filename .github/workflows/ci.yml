@@ -123,3 +123,38 @@ jobs:
             -H "Cookie: db_session=$TOKEN_B" -H 'Content-Type: application/json' \
             --data '{"body":"This must be blocked"}')" = "404"
           echo "Authenticated messaging integration tests passed."
+
+          STARTS_AT="$(date -u -d '+2 days' +%Y-%m-%dT%H:%M:%SZ)"
+          ENDS_AT="$(date -u -d '+2 days 3 hours' +%Y-%m-%dT%H:%M:%SZ)"
+          MEETUP_PAYLOAD="$(jq -n --arg title "CI meetup workflow" --arg area "Westlands, Nairobi" --arg startsAt "$STARTS_AT" --arg endsAt "$ENDS_AT" '{title:$title,area:$area,startsAt:$startsAt,endsAt:$endsAt,capacity:2,visibility:"approval_required",description:"Automated meetup workflow integration test"}')"
+          test "$(curl --silent --output /tmp/meetup-create.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/meetups" -H "Cookie: db_session=$TOKEN_A" \
+            -H 'Content-Type: application/json' --data "$MEETUP_PAYLOAD")" = "201"
+          MEETUP_ID="$(jq -r '.data.meetup.id' /tmp/meetup-create.json)"
+          GROUP_CONVERSATION_ID="$(jq -r '.data.meetup.conversationId' /tmp/meetup-create.json)"
+          test -n "$MEETUP_ID" && test "$MEETUP_ID" != "null"
+          test -n "$GROUP_CONVERSATION_ID" && test "$GROUP_CONVERSATION_ID" != "null"
+          test "$(curl --silent --output /tmp/meetup-join-b.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/meetups/$MEETUP_ID/join" -H "Cookie: db_session=$TOKEN_B")" = "200"
+          grep -q '"membershipStatus":"requested"' /tmp/meetup-join-b.json
+          test "$(curl --silent --output /tmp/meetup-join-c.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/meetups/$MEETUP_ID/join" -H "Cookie: db_session=$TOKEN_C")" = "200"
+          test "$(curl --silent --output /tmp/meetup-approve-b.json --write-out '%{http_code}' \
+            -X PATCH "$BASE_URL/api/meetups/$MEETUP_ID/members/$USER_B" \
+            -H "Cookie: db_session=$TOKEN_A" -H 'Content-Type: application/json' \
+            --data '{"status":"approved"}')" = "200"
+          test "$(curl --silent --output /tmp/meetup-decline-c.json --write-out '%{http_code}' \
+            -X PATCH "$BASE_URL/api/meetups/$MEETUP_ID/members/$USER_C" \
+            -H "Cookie: db_session=$TOKEN_A" -H 'Content-Type: application/json' \
+            --data '{"status":"declined"}')" = "200"
+          test "$(curl --silent --output /tmp/meetup-conversations-b.json --write-out '%{http_code}' \
+            "$BASE_URL/api/conversations" -H "Cookie: db_session=$TOKEN_B")" = "200"
+          grep -q "$GROUP_CONVERSATION_ID" /tmp/meetup-conversations-b.json
+          test "$(curl --silent --output /tmp/meetup-message.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/conversations/$GROUP_CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_B" -H 'Content-Type: application/json' \
+            --data '{"body":"Hello meetup group"}')" = "201"
+          test "$(curl --silent --output /tmp/meetup-outsider.json --write-out '%{http_code}' \
+            "$BASE_URL/api/conversations/$GROUP_CONVERSATION_ID/messages" \
+            -H "Cookie: db_session=$TOKEN_C")" = "404"
+          echo "Meetup creation, approval, membership and group chat integration tests passed."
