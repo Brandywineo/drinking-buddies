@@ -2,10 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { compare } from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../db'
-import { authSessions, profiles, users } from '../../db/schema'
-import { createOpaqueToken, hashToken } from '../../lib/crypto'
-import { jsonError, jsonOk } from '../../lib/http'
+import { getDb } from '../db'
+import { authSessions, profiles, users } from '../db/schema'
+import { createOpaqueToken, hashToken } from '../lib/crypto'
+import { jsonError, jsonOk } from '../lib/http'
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(320),
