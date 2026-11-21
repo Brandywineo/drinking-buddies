@@ -34,6 +34,7 @@ export const Route = createFileRoute('/api/meetups')({
           id: meetups.id, title: meetups.title, description: meetups.description,
           startsAt: meetups.startsAt, endsAt: meetups.endsAt, area: meetups.area,
           capacity: meetups.capacity, visibility: meetups.visibility, hostId: meetups.hostId,
+          pricingType: meetups.pricingType, priceMinor: meetups.priceMinor, currency: meetups.currency, refundPolicy: meetups.refundPolicy,
           hostName: profiles.displayName,
         }).from(meetups).leftJoin(profiles, eq(profiles.userId, meetups.hostId))
           .where(and(eq(meetups.status, 'published'), gt(meetups.startsAt, new Date())))
@@ -85,7 +86,7 @@ export const Route = createFileRoute('/api/meetups')({
             const now = new Date()
             if (existing) {
               if (!['trialing', 'active'].includes(existing.status) || existing.currentPeriodEnd <= now) {
-                if (existing.status === 'trialing' && existing.currentPeriodEnd <= now) {
+                if (['trialing', 'active'].includes(existing.status) && existing.currentPeriodEnd <= now) {
                   await tx.update(hostSubscriptions).set({ status: 'expired', updatedAt: now }).where(eq(hostSubscriptions.id, existing.id))
                 }
                 return { error: 'PREMIUM_REQUIRED' as const }
