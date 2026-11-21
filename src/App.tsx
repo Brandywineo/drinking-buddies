@@ -130,12 +130,74 @@ function App() {
     window.setTimeout(() => setToast(''), 2600)
   }
 
-  const like = (id: string) => {
-    setLiked((current) => current.includes(id) ? current : [...current, id])
-    notify('Interest sent. If they like you too, it’s a match!')
+  const like = async (id: string) => {
+    try {
+      const response = await fetch('/api/likes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not send your interest.')
+      setLiked((current) => current.includes(id) ? current : [...current, id])
+      notify(result.data?.matched ? 'It’s a match! You can now start a conversation.' : 'Interest sent. If they like you too, it’s a match!')
+      await loadDiscovery()
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : 'Could not send your interest.')
+    }
   }
 
-  const pass = (id: string) => setPassed((current) => [...current, id])
+  const pass = async (id: string) => {
+    try {
+      const response = await fetch('/api/passes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not pass on this profile.')
+      setPassed((current) => [...current, id])
+      setProfiles((current) => current.filter((person) => person.id !== id))
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : 'Could not pass on this profile.')
+    }
+  }
+
+  const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setProfileBusy(true)
+    setProfileError('')
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: profileName,
+          bio: profileBio || null,
+          gender: profileGender || null,
+          homeArea: profileArea || null,
+          interests: profileInterests.split(',').map((item) => item.trim()).filter(Boolean),
+          connectionIntents: profileIntents,
+          preferredGenders,
+          discoverable: true,
+          locationVisibility,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not save your profile.')
+      setProfile(result.data.profile)
+      setShowProfileForm(false)
+      notify('Your profile has been saved.')
+      await loadDiscovery()
+    } catch (cause) {
+      setProfileError(cause instanceof Error ? cause.message : 'Could not save your profile.')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
+  const signOut = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.assign('/')
+  }
 
   return (
     <div className="app-shell">
