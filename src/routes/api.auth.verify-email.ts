@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { and, eq, gt, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../db'
-import { emailVerifications, users } from '../../db/schema'
-import { hashToken } from '../../lib/crypto'
-import { jsonError, jsonOk } from '../../lib/http'
+import { getDb } from '../db'
+import { emailVerifications, users } from '../db/schema'
+import { hashToken } from '../lib/crypto'
+import { jsonError, jsonOk } from '../lib/http'
 
 const verificationSchema = z.object({ token: z.string().min(20).max(200) })
 
