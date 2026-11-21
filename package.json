@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
-    "email:worker": "bun run scripts/email-worker.ts"
+    "email:worker": "bun run scripts/email-worker.ts",
+    "marketplace:release": "bun run scripts/marketplace-release-worker.ts"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.169.7",
