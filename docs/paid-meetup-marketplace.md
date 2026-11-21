@@ -46,7 +46,8 @@ Provider documentation:
 
 ## Planned API
 
-- `POST /api/meetups/:meetupId/bookings` — create a pending paid booking and reserve capacity.
+- `POST /api/meetups/:meetupId/bookings` — implemented: create an idempotent pending paid booking, snapshot price/commission/refund policy, and reserve capacity for 15 minutes. Reservations count against capacity until they expire; confirmed bookings remain counted. Payment initialization is explicitly disabled pending provider approval.
+- Paid meetups cannot use the free meetup join endpoint; attendees must use the ticket-booking flow. The current booking endpoint supports public paid meetups; approval-required paid meetups are rejected until an approval/payment sequence is designed.
 - `GET /api/bookings` and `GET /api/bookings/:bookingId` — attendee booking history/details.
 - `POST /api/bookings/:bookingId/checkout` — initialize provider checkout.
 - `POST /api/bookings/:bookingId/cancel` — apply the booking's snapshotted host policy and request refund when due.
@@ -60,7 +61,7 @@ Provider documentation:
 
 1. Database and immutable financial model (this first implementation slice).
 2. Host trial entitlement and paid meetup create/edit/list UI.
-3. Booking lifecycle, capacity reservation and attendee booking UI.
+3. Booking lifecycle foundation: pending ticket reservation and capacity checks implemented; attendee booking history/details and booking UI remain to be built.
 4. Paystack checkout and verified webhook handling, initially in test mode.
 5. Host wallet, release scheduler and Kenya-only payouts.
 6. Admin finance controls, reconciliation, refunds and audit views.
