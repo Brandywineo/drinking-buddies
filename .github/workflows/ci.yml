@@ -35,3 +35,18 @@ jobs:
       - run: bun run typecheck
       - name: Apply database migrations
         run: bun run db:migrate
+      - name: Smoke test server and protected messaging routes
+        run: |
+          bun run start > /tmp/drinking-buddies-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:3000/api/health > /tmp/health.json; then
+              break
+            fi
+            sleep 2
+          done
+          grep -q '"status":"ok"' /tmp/health.json
+          curl --silent --fail http://127.0.0.1:3000/api/ready | grep -q '"database":"connected"'
+          test "$(curl --silent --output /tmp/conversations.json --write-out '%{http_code}' http://127.0.0.1:3000/api/conversations)" = "401"
+          test "$(curl --silent --output /tmp/messages.json --write-out '%{http_code}' http://127.0.0.1:3000/api/conversations/00000000-0000-4000-8000-000000000000/messages)" = "401"
