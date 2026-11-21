@@ -15,24 +15,16 @@
 
 ## Payment-provider decision
 
-### Recommended first provider: Paystack, Kenya-first
+### Safaricom Daraja / M-PESA — launch integration
 
-Paystack can accept cards from international customers for Kenyan businesses once international payments are enabled following Paystack's compliance review. Paystack documents USD settlement for eligible Kenyan businesses with a USD bank account domiciled in Kenya. Card acceptance is not a guarantee that every issuer, card, or country will be approved. Paystack supports subaccounts and split settlements, but we will not use automatic split settlement for the first release because the product requires admin-controlled payout timing.
+Daraja is the selected payment integration for this marketplace. The attendee checkout should use M-PESA STK Push: the server creates a checkout request, the attendee approves it on their phone, and the booking remains pending until a verified Daraja callback confirms the transaction. The callback must be authenticated/validated, persisted in the webhook inbox, and processed idempotently. A browser redirect or client-side success message must never confirm a booking.
 
-Initial funds flow: collect attendee payments into the platform's Paystack merchant balance; after the event-specific release schedule, refund reserve, reconciliation and admin approval are satisfied, pay the host through Paystack Transfers. This flow must be approved by Paystack in writing before launch. Paystack Transfers are domestic to the merchant's country and require a Registered business; Kenya supports local bank and M-PESA transfer rails. For this launch, only verified Kenyan bank accounts will be enabled for host cash-outs. International hosts can host/list only if otherwise eligible, but their payout is disabled until another provider and corridor are approved. Global attendee checkout means international cardholders in Paystack-supported/approved markets, not every country or card without restriction.
+Daraja is an M-PESA integration, not a global card-acquiring service. It supports M-PESA payment flows; it does not by itself provide worldwide Visa/Mastercard acceptance. If the product still requires attendees worldwide to pay by international card, that requires a separately approved card provider or payment rail. Do not describe Daraja-only checkout as global card acceptance.
 
-Adyen for Platforms' published supported account countries do not include Kenya. Stripe Connect cross-border payouts require both the platform and connected accounts to be in supported countries; Stripe's public global availability list does not currently list Kenya as a supported platform country. Neither should be selected as the Kenya legal entity's launch marketplace provider without written provider approval.
+Host disbursement must use a separately defined Daraja-supported payout flow and approved Safaricom shortcode/permissions. If hosts are paid to M-PESA wallets, the likely flow is Daraja B2C to verified Kenyan M-PESA numbers. Do not assume B2C sends funds directly to bank accounts. Confirm the payout destination and Safaricom's approval of the marketplace funds flow before implementing live disbursements.
 
-Provider documentation:
-- https://paystack.com/docs/v2/payments/split-payments
-- https://support.paystack.com/en/articles/2130562
-- https://support.paystack.com/en/articles/2130690
-- https://support.paystack.com/en/articles/2132866
-- https://support.paystack.com/en/articles/2130690
-- https://support.paystack.com/en/articles/2131074
-- https://docs.adyen.com/platforms
-- https://support.stripe.com/questions/pay-out-to-connected-accounts-in-other-countries
-- https://stripe.com/global
+For launch, keep payment and payout credentials server-side, use Daraja sandbox first, verify callbacks, reconcile the shortcode statement, and keep live transactions disabled until Safaricom has approved the exact collection, refunds, and host-disbursement model. No automatic split settlement is assumed; host release remains controlled by the platform's admin-configured schedule and ledger.
+
 
 ## Architecture
 
