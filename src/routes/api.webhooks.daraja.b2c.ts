@@ -9,7 +9,6 @@ type B2CResult = {
   ConversationID?: string
   ResultCode?: number
   ResultDesc?: string
-  TransactionID?: string
   ResultParameters?: { ResultParameter?: ResultParam[] }
 }
 
@@ -43,11 +42,19 @@ export const Route = createFileRoute('/api/webhooks/daraja/b2c')({
           const [locked] = await tx.select().from(hostPayouts).where(eq(hostPayouts.id, payout.id)).limit(1)
           if (!locked || locked.status !== 'processing') return
           const now = new Date()
-          const succeeded = Number(result.ResultCode) === 0 && typeof result.TransactionID === 'string'
+          const resultParams = result.ResultParameters?.ResultParameter ?? []
+          const receipt = resultParams.find((item) => item.Key === 'TransactionReceipt')?.Value
+          const amount = Number(resultParams.find((item) => item.Key === 'TransactionAmount')?.Value)
+          const receiver = String(resultParams.find((item) => item.Key === 'ReceiverPartyPublicName')?.Value ?? '')
+          const expectedPhone = locked.destinationReference ?? ''
+          const succeeded = Number(result.ResultCode) === 0
+            && typeof receipt === 'string' && receipt.length > 0
+            && amount * 100 === locked.amountMinor
+            && receiver.startsWith(expectedPhone)
           if (succeeded) {
             await tx.update(hostPayouts).set({
               status: 'paid', providerReference: conversationId ?? locked.providerReference,
-              processedAt: now, metadata: { ...locked.metadata, transactionId: result.TransactionID, resultDescription: result.ResultDesc },
+              processedAt: now, metadata: { ...locked.metadata, transactionId: receipt, resultDescription: result.ResultDesc, resultAmount: amount, receiver },
               updatedAt: now,
             }).where(eq(hostPayouts.id, locked.id))
             await tx.update(hostWalletAccounts).set({
@@ -58,7 +65,7 @@ export const Route = createFileRoute('/api/webhooks/daraja/b2c')({
               walletId: locked.walletId, kind: 'payout_debit', amountMinor: -locked.amountMinor,
               currency: locked.currency, referenceType: 'host_payout', referenceId: locked.id,
               idempotencyKey: `payout-debit:${locked.id}`,
-              metadata: { transactionId: result.TransactionID, conversationId },
+              metadata: { transactionId: receipt, conversationId, receiver },
             }).onConflictDoNothing()
           } else {
             await tx.update(hostPayouts).set({

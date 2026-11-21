@@ -4,7 +4,7 @@ import { getDb } from '../db'
 import {
   hostSubscriptions, hostWalletAccounts, hostWalletTransactions, meetupBookings, paymentWebhookEvents, payments,
 } from '../db/schema'
-import { queryStkPush } from '../lib/daraja'
+import { normalizeMpesaPhone, queryStkPush } from '../lib/daraja'
 
 type CallbackItem = { Name?: string; Value?: string | number }
 type StkCallback = {
@@ -61,7 +61,9 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
         const amount = Number(metadataValue(items, 'Amount'))
         const receipt = metadataValue(items, 'MpesaReceiptNumber')
         const phone = String(metadataValue(items, 'PhoneNumber') ?? '')
-        if (!Number.isFinite(amount) || amount * 100 !== payment.amountMinor || typeof receipt !== 'string' || !receipt || !phone) {
+        const expectedPhone = typeof payment.metadata.phone === 'string' ? payment.metadata.phone : ''
+        if (!Number.isFinite(amount) || amount * 100 !== payment.amountMinor || typeof receipt !== 'string' || !receipt || !phone
+          || normalizeMpesaPhone(phone) !== normalizeMpesaPhone(expectedPhone)) {
           await db.update(paymentWebhookEvents).set({ processingError: 'Callback amount, receipt or payer details did not match payment' }).where(eq(paymentWebhookEvents.id, event.id))
           return Response.json({ ResultCode: 0, ResultDesc: 'Accepted for reconciliation' })
         }
