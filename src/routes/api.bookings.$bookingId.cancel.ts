@@ -20,6 +20,8 @@ export const Route = createFileRoute('/api/bookings/$bookingId/cancel')({
         eq(meetupBookings.id, parsed.data.bookingId), eq(meetupBookings.attendeeId, userId),
       )).limit(1)
       if (!booking) return jsonError('Booking not found.', 404, 'BOOKING_NOT_FOUND')
+      const [priorRefund] = await db.select().from(marketplaceRefunds).where(eq(marketplaceRefunds.idempotencyKey, `refund:${booking.id}`)).limit(1)
+      if (priorRefund) return jsonOk({ bookingId: booking.id, status: booking.status, refund: priorRefund, reused: true })
       if (!['pending_payment', 'confirmed'].includes(booking.status)) return jsonError('This booking cannot be cancelled.', 409, 'BOOKING_NOT_CANCELLABLE')
       const [meetup] = await db.select().from(meetups).where(eq(meetups.id, booking.meetupId)).limit(1)
       if (!meetup || meetup.startsAt <= new Date()) return jsonError('Bookings cannot be cancelled after the meetup starts.', 409, 'CANCELLATION_CLOSED')
@@ -42,8 +44,6 @@ export const Route = createFileRoute('/api/bookings/$bookingId/cancel')({
       const refundAmountMinor = Math.round(booking.grossAmountMinor * refundPercentage / 100)
       const hostDebitMinor = Math.round(booking.hostNetMinor * refundPercentage / 100)
       if (refundAmountMinor <= 0) return jsonError('The saved refund policy calculates no refundable amount.', 409, 'NO_REFUND_DUE')
-      const [existing] = await db.select().from(marketplaceRefunds).where(eq(marketplaceRefunds.idempotencyKey, `refund:${booking.id}`)).limit(1)
-      if (existing) return jsonOk({ bookingId: booking.id, status: 'cancelled', refund: existing, reused: true })
       const result = await db.transaction(async (tx) => {
         const [refund] = await tx.insert(marketplaceRefunds).values({
           bookingId: booking.id, paymentId: payment.id, attendeeId: userId, hostId: booking.hostId,

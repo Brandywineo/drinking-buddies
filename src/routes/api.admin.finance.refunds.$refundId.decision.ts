@@ -41,6 +41,7 @@ export const Route = createFileRoute('/api/admin/finance/refunds/$refundId/decis
         await tx.execute(sql`SELECT id FROM marketplace_refunds WHERE id = ${refund.id} FOR UPDATE`)
         const [locked] = await tx.select().from(marketplaceRefunds).where(eq(marketplaceRefunds.id, refund.id)).limit(1)
         if (!locked || locked.status !== 'requested') return { error: 'ALREADY_REVIEWED' as const }
+        await tx.execute(sql`SELECT id FROM host_wallet_accounts WHERE user_id = ${locked.hostId} AND currency = ${locked.currency} FOR UPDATE`)
         const [wallet] = await tx.select().from(hostWalletAccounts).where(and(
           eq(hostWalletAccounts.userId, locked.hostId), eq(hostWalletAccounts.currency, locked.currency),
         )).limit(1)
