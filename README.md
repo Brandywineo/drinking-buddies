@@ -68,6 +68,9 @@ The local PostGIS container uses development-only credentials. Change them befor
 - `GET /api/discovery?area=<area>` — returns compatible discoverable profiles, excluding prior passes, outgoing likes, active matches and blocked users; selected home area is only returned when its owner sets location visibility to public.
 - `POST /api/likes` with `{ "userId": "<uuid>" }` — records a like and creates a match plus match conversation after a reciprocal like.
 - `POST /api/passes` with `{ "userId": "<uuid>" }` — records a pass so that profile is not shown again.
+- `GET /api/conversations` — lists the signed-in user's active match chats and approved meetup group chats.
+- `GET /api/conversations/<conversationId>/messages?before=<ISO timestamp>` — returns up to 50 authorized messages, newest page first in chronological display order.
+- `POST /api/conversations/<conversationId>/messages` with `{ "body": "..." }` — sends a message after server-side conversation membership, active-match and block checks.
 
 The email worker reads the transactional outbox, uses row locking to avoid duplicate concurrent delivery, retries failures with backoff and marks exhausted jobs failed.
 
@@ -95,8 +98,8 @@ Still to implement:
 - Google OAuth and phone OTP provider integrations.
 - Rate limiting, abuse controls and production security review for auth endpoints.
 - Profile photo storage.
-- Persistent profile editing, gender-preference compatibility filtering, area-filtered discovery, pass/like actions and mutual-match creation. The discovery UI now uses authenticated API data rather than demo people. Discovery is area-based, not GPS-distance-based.
-- Conversation membership authorization and real-time chat delivery.
+- Profile photo storage.
+- Messaging API with match/meetup membership authorization, message history and sending. The current client delivery approach is polling; websocket/SSE push, read receipts and typing indicators remain future work.
 - Meetup CRUD, approvals and group conversation membership.
 - Venue self-registration, admin approval UI and admin-configurable package management.
 - M-Pesa Daraja integration and payment callback verification.
