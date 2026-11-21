@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   ArrowRight, Bell, CalendarDays, Check, ChevronDown, Compass, Heart,
   MapPin, MessageCircle, Plus, Search, ShieldCheck, SlidersHorizontal,
@@ -120,7 +120,7 @@ function App() {
   )
 }
 
-function NavButton({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count?: string }) {
+function NavButton({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: ReactNode; label: string; count?: string }) {
   return <button className={`nav-button ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{label}</span>{count && <i>{count}</i>}</button>
 }
 
