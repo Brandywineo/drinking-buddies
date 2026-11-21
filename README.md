@@ -83,7 +83,7 @@ bun run db:migrate
 
 Implemented in this branch:
 - TanStack Start app routing and server runtime foundation.
-- Responsive discovery UI, meetup UI shell and venue directory shell.
+- Responsive discovery UI backed by authenticated profile and discovery APIs; meetup and venue UI shells remain demo-backed.
 - PostgreSQL/PostGIS Drizzle schema and SQL migrations.
 - Local Docker PostGIS database.
 - Email/password registration, 18+ acknowledgement, one-time email verification, login, session lookup and logout.
@@ -94,7 +94,7 @@ Implemented in this branch:
 Still to implement:
 - Google OAuth and phone OTP provider integrations.
 - Rate limiting, abuse controls and production security review for auth endpoints.
-- Profile photo storage and richer profile editing.
+- Profile photo storage.
 - Persistent profile editing, gender-preference compatibility filtering, area-filtered discovery, pass/like actions and mutual-match creation. The discovery UI now uses authenticated API data rather than demo people. Discovery is area-based, not GPS-distance-based.
 - Conversation membership authorization and real-time chat delivery.
 - Meetup CRUD, approvals and group conversation membership.
