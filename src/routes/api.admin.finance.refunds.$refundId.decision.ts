@@ -70,7 +70,7 @@ export const Route = createFileRoute('/api/admin/finance/refunds/$refundId/decis
       })
       if ('error' in reservation) return jsonError(
         reservation.error === 'HOST_BALANCE' ? 'Host wallet does not have enough unsettled/available earnings to cover its refund share.' : 'Refund has already been reviewed.',
-        409, reservation.error,
+        409, reservation.error ?? 'REFUND_RESERVATION_FAILED',
       )
       try {
         const result = await initiateReversal({
