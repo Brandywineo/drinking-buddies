@@ -1,5 +1,7 @@
 CREATE TYPE meetup_pricing_type AS ENUM ('free', 'paid');
 --> statement-breakpoint
+CREATE TYPE host_membership_plan AS ENUM ('free_trial', 'premium_monthly', 'premium_annual');
+--> statement-breakpoint
 CREATE TYPE meetup_booking_status AS ENUM ('pending_payment', 'confirmed', 'cancelled', 'refunded', 'attended', 'no_show');
 --> statement-breakpoint
 CREATE TYPE host_payout_status AS ENUM ('requested', 'approved', 'processing', 'paid', 'failed', 'rejected');
@@ -15,6 +17,7 @@ ALTER TABLE meetups
 CREATE TABLE host_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan host_membership_plan NOT NULL DEFAULT 'free_trial',
   status subscription_status NOT NULL DEFAULT 'trialing',
   locked_price_minor integer NOT NULL DEFAULT 0 CHECK (locked_price_minor >= 0),
   currency varchar(3) NOT NULL DEFAULT 'KES',
@@ -33,7 +36,7 @@ CREATE TABLE host_subscriptions (
   CONSTRAINT host_subscriptions_period_dates_ck CHECK (current_period_end > current_period_start)
 );
 --> statement-breakpoint
-CREATE INDEX host_subscriptions_user_idx ON host_subscriptions(user_id);
+CREATE UNIQUE INDEX host_subscriptions_user_uq ON host_subscriptions(user_id);
 --> statement-breakpoint
 CREATE INDEX host_subscriptions_status_period_idx ON host_subscriptions(status, current_period_end);
 --> statement-breakpoint
