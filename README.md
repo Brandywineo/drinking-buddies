@@ -93,13 +93,13 @@ Implemented in this branch:
 - Transactional email outbox and retrying SMTP worker.
 - Health and database readiness endpoints.
 - CI build/typecheck workflow.
+- Match and meetup conversation list, authorized message history and send-message APIs, plus responsive polling-based chat UI.
 
 Still to implement:
 - Google OAuth and phone OTP provider integrations.
 - Rate limiting, abuse controls and production security review for auth endpoints.
 - Profile photo storage.
-- Profile photo storage.
-- Messaging API with match/meetup membership authorization, message history and sending. The current client delivery approach is polling; websocket/SSE push, read receipts and typing indicators remain future work.
+- WebSocket/SSE push delivery, read receipts and typing indicators; current chat refreshes by polling.
 - Meetup CRUD, approvals and group conversation membership.
 - Venue self-registration, admin approval UI and admin-configurable package management.
 - M-Pesa Daraja integration and payment callback verification.
