@@ -89,7 +89,7 @@ async function run() {
     try {
       const job = await claimNextJob()
       if (!job) {
-        await Bun.sleep(2500)
+        await new Promise((resolve) => setTimeout(resolve, 2500))
         continue
       }
 
@@ -124,7 +124,7 @@ async function run() {
       }
     } catch (error) {
       console.error('Email worker loop failed', error)
-      await Bun.sleep(5000)
+      await new Promise((resolve) => setTimeout(resolve, 5000))
     }
   }
 
