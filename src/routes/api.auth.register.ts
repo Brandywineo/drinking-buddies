@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/react-router'
 import { hash } from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../db'
-import { emailOutbox, emailVerifications, profiles, users } from '../../db/schema'
-import { AGE_GATE_VERSION, hasAcceptedAdultTerms } from '../../lib/age-gate'
-import { createOpaqueToken, hashToken } from '../../lib/crypto'
-import { jsonError, jsonOk } from '../../lib/http'
+import { getDb } from '../db'
+import { emailOutbox, emailVerifications, profiles, users } from '../db/schema'
+import { AGE_GATE_VERSION, hasAcceptedAdultTerms } from '../lib/age-gate'
+import { createOpaqueToken, hashToken } from '../lib/crypto'
+import { jsonError, jsonOk } from '../lib/http'
 
 const registrationSchema = z.object({
   email: z.string().trim().email().max(320),
