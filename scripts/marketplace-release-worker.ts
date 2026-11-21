@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
 import { getDb } from '../src/db'
-import { hostWalletAccounts, hostWalletTransactions, meetupBookings, platformSettings } from '../src/db/schema'
+import { hostWalletAccounts, hostWalletTransactions, meetupBookings, meetups, platformSettings } from '../src/db/schema'
 
 async function main() {
   const db = getDb()
@@ -9,7 +9,7 @@ async function main() {
   const configuredHours = Number(config.releaseHours ?? 24)
   const releaseHours = Number.isInteger(configuredHours) ? Math.min(168, Math.max(1, configuredHours)) : 24
   const eligible = await db.select({ id: meetupBookings.id }).from(meetupBookings)
-    .innerJoin(sql`meetups`, sql`meetups.id = ${meetupBookings.meetupId}`)
+     .innerJoin(meetups, eq(meetups.id, meetupBookings.meetupId))
     .where(and(
       eq(meetupBookings.status, 'confirmed'),
       sql`coalesce(meetups.ends_at, meetups.starts_at + interval '3 hours') <= now() - make_interval(hours => ${releaseHours})`,
