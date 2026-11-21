@@ -60,7 +60,7 @@ The local PostGIS container uses development-only credentials. Change them befor
 - `GET /api/health` — process health.
 - `GET /api/ready` — database readiness.
 - `POST /api/auth/register` — email/password registration with mandatory 18+ acknowledgement; queues a verification email.
-- `GET /api/auth/verify-email?token=...` — consumes a one-time verification token.
+- `POST /api/auth/verify-email (JSON body: { token })` — consumes a one-time verification token.
 - `POST /api/auth/login` — verifies credentials and creates an HttpOnly session cookie.
 - `GET /api/auth/me` — returns the current signed-in user.
 - `POST /api/auth/logout` — revokes the current session.
