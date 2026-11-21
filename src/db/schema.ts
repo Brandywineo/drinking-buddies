@@ -22,6 +22,8 @@ export const venueApprovalStatus = pgEnum('venue_approval_status', ['pending', '
 export const subscriptionStatus = pgEnum('subscription_status', ['trialing', 'active', 'past_due', 'cancelled', 'expired'])
 export const paymentStatus = pgEnum('payment_status', ['pending', 'succeeded', 'failed', 'reversed'])
 export const outboxStatus = pgEnum('outbox_status', ['queued', 'processing', 'sent', 'failed'])
+export const conversationKind = pgEnum('conversation_kind', ['match', 'meetup'])
+export const reportStatus = pgEnum('report_status', ['open', 'reviewing', 'resolved', 'dismissed'])
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -55,7 +57,7 @@ export const profiles = pgTable('profiles', {
   discoverable: boolean('discoverable').notNull().default(true),
   locationVisibility: locationVisibility('location_visibility').notNull().default('private'),
   preferredGenders: jsonb('preferred_genders').$type<string[]>().notNull().default([]),
-  connectionIntents: jsonb('connection_intents').$type<(typeof connectionIntent.enumValues)[number][]>().notNull().default([]),
+  connectionIntents: jsonb('connection_intents').$type<string[]>().notNull().default([]),
   interests: jsonb('interests').$type<string[]>().notNull().default([]),
   homeArea: varchar('home_area', { length: 120 }),
   ...timestamps,
@@ -236,4 +238,64 @@ export const emailOutbox = pgTable('email_outbox', {
   ...timestamps,
 }, (table) => [
   index('email_outbox_status_next_idx').on(table.status, table.nextAttemptAt),
+])
+
+
+export const profileLikes = pgTable('profile_likes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fromUserId: uuid('from_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  toUserId: uuid('to_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('profile_likes_pair_uq').on(table.fromUserId, table.toUserId),
+  index('profile_likes_to_user_idx').on(table.toUserId),
+])
+
+export const conversations = pgTable('conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  kind: conversationKind('kind').notNull(),
+  matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }),
+  meetupId: uuid('meetup_id').references(() => meetups.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('conversations_match_id_uq').on(table.matchId),
+  uniqueIndex('conversations_meetup_id_uq').on(table.meetupId),
+])
+
+export const messages = pgTable('messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: varchar('body', { length: 4000 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  editedAt: timestamp('edited_at', { withTimezone: true }),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => [
+  index('messages_conversation_created_idx').on(table.conversationId, table.createdAt),
+  index('messages_sender_idx').on(table.senderId),
+])
+
+export const userBlocks = pgTable('user_blocks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  blockerId: uuid('blocker_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  blockedId: uuid('blocked_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('user_blocks_pair_uq').on(table.blockerId, table.blockedId),
+])
+
+export const userReports = pgTable('user_reports', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  reporterId: uuid('reporter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reportedUserId: uuid('reported_user_id').references(() => users.id, { onDelete: 'set null' }),
+  contentType: varchar('content_type', { length: 32 }).notNull(),
+  contentId: uuid('content_id'),
+  reason: varchar('reason', { length: 100 }).notNull(),
+  details: varchar('details', { length: 2000 }),
+  status: reportStatus('status').notNull().default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('user_reports_status_created_idx').on(table.status, table.createdAt),
+  index('user_reports_reporter_idx').on(table.reporterId),
 ])
