@@ -1,12 +1,38 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   ArrowRight, Bell, CalendarDays, Check, ChevronDown, Compass, Heart,
   MapPin, MessageCircle, Plus, Search, ShieldCheck, SlidersHorizontal,
   Sparkles, Users, Wine, X,
 } from 'lucide-react'
-import { buddies, meetups, venues } from './data/demo'
+import { meetups, venues } from './data/demo'
 
 type Tab = 'discover' | 'meetups' | 'places' | 'messages'
+
+type MemberProfile = {
+  id: string
+  displayName: string
+  bio: string | null
+  gender: string | null
+  interests: string[]
+  connectionIntents: string[]
+  homeArea: string | null
+}
+type OwnProfile = {
+  displayName: string
+  bio: string | null
+  gender: string | null
+  discoverable: boolean
+  locationVisibility: 'private' | 'matches' | 'public'
+  preferredGenders: string[]
+  connectionIntents: string[]
+  interests: string[]
+  homeArea: string | null
+}
+type SessionUser = { id: string; email: string; displayName: string | null }
+const intentLabels: Record<string, string> = {
+  drinking_buddies: 'Drinking buddies', friendship: 'New friendships',
+  social_and_dating: 'Social and dating', group_outings: 'Group outings',
+}
 
 function App() {
   const [tab, setTab] = useState<Tab>('discover')
@@ -16,13 +42,88 @@ function App() {
   const [area, setArea] = useState('All areas')
   const [showFilters, setShowFilters] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [showProfileForm, setShowProfileForm] = useState(false)
   const [toast, setToast] = useState('')
+  const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading')
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
+  const [profile, setProfile] = useState<OwnProfile | null>(null)
+  const [profiles, setProfiles] = useState<MemberProfile[]>([])
+  const [discoveryLoading, setDiscoveryLoading] = useState(false)
+  const [discoveryError, setDiscoveryError] = useState('')
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const [profileName, setProfileName] = useState('')
+  const [profileBio, setProfileBio] = useState('')
+  const [profileGender, setProfileGender] = useState('')
+  const [profileArea, setProfileArea] = useState('')
+  const [profileInterests, setProfileInterests] = useState('')
+  const [profileIntents, setProfileIntents] = useState<string[]>(['drinking_buddies'])
+  const [preferredGenders, setPreferredGenders] = useState<string[]>([])
+  const [locationVisibility, setLocationVisibility] = useState<'private' | 'matches' | 'public'>('private')
 
-  const visibleBuddies = useMemo(() => buddies.filter((buddy) => {
-    const matchesArea = area === 'All areas' || buddy.area === area
-    const matchesQuery = `${buddy.name} ${buddy.area} ${buddy.interests.join(' ')}`.toLowerCase().includes(query.toLowerCase())
-    return matchesArea && matchesQuery && !passed.includes(buddy.id)
-  }), [area, query, passed])
+  async function loadDiscovery(selectedArea = area) {
+    setDiscoveryLoading(true)
+    setDiscoveryError('')
+    try {
+      const params = new URLSearchParams()
+      if (selectedArea !== 'All areas') params.set('area', selectedArea)
+      const response = await fetch('/api/discovery' + (params.size ? '?' + params.toString() : ''))
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not load people.')
+      setProfiles(Array.isArray(result.data?.profiles) ? result.data.profiles : [])
+    } catch (cause) {
+      setDiscoveryError(cause instanceof Error ? cause.message : 'Could not load people.')
+    } finally {
+      setDiscoveryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+    async function bootstrap() {
+      try {
+        const sessionResponse = await fetch('/api/auth/me')
+        if (!sessionResponse.ok) {
+          if (active) setAuthStatus('signed_out')
+          return
+        }
+        const sessionResult = await sessionResponse.json()
+        const user = sessionResult.data?.user as SessionUser | undefined
+        if (!user || !active) return
+        setCurrentUser(user)
+        setAuthStatus('signed_in')
+        const profileResponse = await fetch('/api/profile')
+        const profileResult = await profileResponse.json()
+        if (!profileResponse.ok) throw new Error(profileResult.error?.message ?? 'Could not load your profile.')
+        if (!active) return
+        const ownProfile = profileResult.data?.profile as OwnProfile | null
+        setProfile(ownProfile)
+        if (ownProfile) {
+          setProfileName(ownProfile.displayName)
+          setProfileBio(ownProfile.bio ?? '')
+          setProfileGender(ownProfile.gender ?? '')
+          setProfileArea(ownProfile.homeArea ?? '')
+          setProfileInterests(ownProfile.interests.join(', '))
+          setProfileIntents(ownProfile.connectionIntents)
+          setPreferredGenders(ownProfile.preferredGenders)
+          setLocationVisibility(ownProfile.locationVisibility)
+          await loadDiscovery('All areas')
+        } else {
+          setProfileName(user.displayName ?? '')
+          setShowProfileForm(true)
+        }
+      } catch (cause) {
+        if (active) setDiscoveryError(cause instanceof Error ? cause.message : 'Could not load your account.')
+      }
+    }
+    void bootstrap()
+    return () => { active = false }
+  }, [])
+
+  const visibleBuddies = useMemo(() => profiles.filter((person) => {
+    const text = [person.displayName, person.homeArea ?? '', person.bio ?? '', ...person.interests].join(' ').toLowerCase()
+    return text.includes(query.toLowerCase())
+  }), [profiles, query])
 
   const notify = (message: string) => {
     setToast(message)
