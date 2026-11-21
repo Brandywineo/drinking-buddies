@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/discovery')({
       }).from(profiles).innerJoin(users, eq(users.id, profiles.userId))
         .where(and(
           eq(users.status, 'active'), eq(profiles.discoverable, true), ne(users.id, userId),
-          ...(parsed.data.area ? [ilike(profiles.homeArea, `%${parsed.data.area}%`)] : []),
+          ...(parsed.data.area ? [eq(profiles.locationVisibility, 'public'), ilike(profiles.homeArea, `%${parsed.data.area}%`)] : []),
           notExists(db.select({ id: profileLikes.id }).from(profileLikes).where(and(eq(profileLikes.fromUserId, userId), eq(profileLikes.toUserId, users.id)))),
           notExists(db.select({ id: profilePasses.id }).from(profilePasses).where(and(eq(profilePasses.fromUserId, userId), eq(profilePasses.toUserId, users.id)))),
           notExists(db.select({ id: matches.id }).from(matches).where(and(
