@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { sql } from 'drizzle-orm'
-import { getDb } from '../../db'
+import { getDb } from '../db'
 
 export const Route = createFileRoute('/api/ready')({
   server: {
