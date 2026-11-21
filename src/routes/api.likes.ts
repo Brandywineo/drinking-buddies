@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, ne } from 'drizzle-orm'
+import { and, eq, notExists } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { conversations, matches, profileLikes, profiles, users } from '../db/schema'
+import { conversations, matches, profileLikes, profiles, userBlocks, users } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
@@ -20,7 +20,11 @@ export const Route = createFileRoute('/api/likes')({
       const targetId = parsed.data.userId
       const db = getDb()
       const [target] = await db.select({ id: users.id }).from(users).innerJoin(profiles, eq(profiles.userId, users.id))
-        .where(and(eq(users.id, targetId), eq(users.status, 'active'), eq(profiles.discoverable, true))).limit(1)
+        .where(and(
+          eq(users.id, targetId), eq(users.status, 'active'), eq(profiles.discoverable, true),
+          notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, users.id)))),
+          notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, users.id), eq(userBlocks.blockedId, userId)))),
+        )).limit(1)
       if (!target) return jsonError('That profile is not available.', 404, 'PROFILE_NOT_FOUND')
 
       const result = await db.transaction(async (tx) => {
