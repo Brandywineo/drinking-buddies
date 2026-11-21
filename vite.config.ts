@@ -1,9 +1,10 @@
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import { defineConfig } from 'vite'
+import { nitro } from 'nitro/vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [tanstackStart(), react(), tailwindcss()],
-  server: { host: '0.0.0.0' },
+  plugins: [tanstackStart(), nitro(), react(), tailwindcss()],
+  server: { host: '0.0.0.0', port: 3000 },
 })
