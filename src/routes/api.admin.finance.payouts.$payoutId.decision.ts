@@ -55,7 +55,7 @@ export const Route = createFileRoute('/api/admin/finance/payouts/$payoutId/decis
         if (!locked || locked.status !== 'requested') return false
         await tx.update(hostPayouts).set({
           status: 'processing', reviewedBy: adminId, reviewedAt: new Date(),
-          metadata: { ...locked.metadata, submissionStartedAt: new Date().toISOString() }, updatedAt: new Date(),
+          metadata: { ...locked.metadata, originatorConversationId: `payout-${locked.id}`, submissionStartedAt: new Date().toISOString() }, updatedAt: new Date(),
         }).where(eq(hostPayouts.id, payout.id))
         return true
       })
