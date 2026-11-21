@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { getDb } from '../db'
 import { authSessions, profiles, users } from '../db/schema'
 import { createOpaqueToken, hashToken } from '../lib/crypto'
-import { jsonError, jsonOk } from '../lib/http'
+import { jsonError } from '../lib/http'
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(320),
