@@ -4,7 +4,8 @@
 
 - Free meetups remain available to all eligible hosts.
 - Paid meetups require a host subscription in `trialing` or `active` state.
-- Host membership starts with an admin-configured free trial. Trial length, paid price, billing interval, and eligibility rules live in platform settings; do not hard-code commercial pricing.
+- Premium host membership starts with the `free_trial` plan. Trial length, paid price, billing interval, and eligibility rules live in platform settings; the trial is granted once per host and is created when the host first attempts to publish a paid meetup.
+- A paid meetup cannot be published unless the host has a non-expired `trialing` or `active` premium membership.
 - Booking commission is admin-configurable and snapshotted in basis points on each booking.
 - Host payout release is admin-configurable as a percentage schedule. Each schedule can define pre-event and post-event tranches and their release conditions.
 - Hosts choose a cancellation/refund policy from admin-approved options. The selected policy is snapshotted on each booking so later policy edits do not rewrite existing bookings.
@@ -16,9 +17,9 @@
 
 ### Recommended first provider: Paystack, Kenya-first
 
-Paystack supports Kenyan registered businesses and can accept international card payments when international payments are enabled for the merchant account and the business passes Paystack's compliance review. Kenyan businesses can receive USD settlement to a USD bank account domiciled in Kenya. Paystack split payments support marketplace subaccounts and split settlement.
+Paystack can accept cards from international customers for Kenyan businesses once international payments are enabled following Paystack's compliance review. Paystack documents USD settlement for eligible Kenyan businesses with a USD bank account domiciled in Kenya. Card acceptance is not a guarantee that every issuer, card, or country will be approved. Paystack supports subaccounts and split settlements, but we will not use automatic split settlement for the first release because the product requires admin-controlled payout timing.
 
-Important limitation: Paystack's Transfers product sends funds from the business balance to bank accounts in the business's country. This is not a global connected-account payout network. Therefore the initial payout corridor should be Kenya-only (verified Kenyan bank account; M-Pesa payout only if Paystack confirms the required payout product and account eligibility). Global attendees can pay from supported card markets, but hosts outside Kenya must not be promised cash-out until another provider/corridor is contracted and implemented.
+Initial funds flow: collect attendee payments into the platform's Paystack merchant balance; after the event-specific release schedule, refund reserve, reconciliation and admin approval are satisfied, pay the host through Paystack Transfers. This flow must be approved by Paystack in writing before launch. Paystack Transfers are domestic to the merchant's country and require a Registered business; Kenya supports local bank and M-PESA transfer rails. For this launch, only verified Kenyan bank accounts will be enabled for host cash-outs. International hosts can host/list only if otherwise eligible, but their payout is disabled until another provider and corridor are approved. Global attendee checkout means international cardholders in Paystack-supported/approved markets, not every country or card without restriction.
 
 Adyen for Platforms' published supported account countries do not include Kenya. Stripe Connect cross-border payouts require both the platform and connected accounts to be in supported countries; Stripe's public global availability list does not currently list Kenya as a supported platform country. Neither should be selected as the Kenya legal entity's launch marketplace provider without written provider approval.
 
@@ -27,6 +28,8 @@ Provider documentation:
 - https://support.paystack.com/en/articles/2130562
 - https://support.paystack.com/en/articles/2130690
 - https://support.paystack.com/en/articles/2132866
+- https://support.paystack.com/en/articles/2130690
+- https://support.paystack.com/en/articles/2131074
 - https://docs.adyen.com/platforms
 - https://support.stripe.com/questions/pay-out-to-connected-accounts-in-other-countries
 - https://stripe.com/global
@@ -37,8 +40,9 @@ Provider documentation:
 2. **Provider adapter:** an interface owns checkout initialization, payment verification, refund execution, recipient onboarding, payout initiation and payout status lookup. No route calls a provider SDK directly.
 3. **Capability registry:** a provider/country/currency matrix determines whether checkout and payout are enabled. Checkout capability and payout capability are separate; global card acceptance must never imply global host payouts.
 4. **Webhook inbox:** persist provider event ID before processing, enforce uniqueness, verify provider signatures against the raw request body, and process idempotently.
-5. **Ledger:** immutable double-entry-style financial events with a transactionally maintained wallet summary. Never accept wallet balance or commission amounts from the client.
-6. **Payout orchestration:** admin-configured release schedule, risk/refund reserve, host KYC state, country/currency capability and provider settlement status all gate release.
+5. **Paystack launch flow:** international card acceptance behind merchant eligibility; no auto-split/subaccount settlement at checkout; host disbursement only after the admin release policy via domestic Kenyan bank transfer. The marketplace funds-flow approval is a hard launch dependency.
+6. **Ledger:** immutable double-entry-style financial events with a transactionally maintained wallet summary. Never accept wallet balance or commission amounts from the client.
+7. **Payout orchestration:** admin-configured release schedule, risk/refund reserve, host KYC state, country/currency capability and provider settlement status all gate release.
 
 ## Planned API
 
@@ -64,7 +68,7 @@ Provider documentation:
 
 ## Launch gates
 
-- Written Paystack confirmation of marketplace use case, international card acceptance, settlement currencies, subaccount eligibility, refund/chargeback responsibility and payout corridors.
+- Written Paystack confirmation of this marketplace funds flow: global card acceptance eligibility, holding/settling collected proceeds to the platform, post-event host transfers, refunds/chargebacks, and permitted payout purpose. Automatic split settlement is not used for launch.
 - Kenyan legal/accounting review of marketplace funds flow, consumer cancellation rights, tax and any licensing/holding-funds implications.
 - Provider sandbox and webhook signature tests.
 - No live payout or paid meetup launch until the provider and compliance gates are approved.
