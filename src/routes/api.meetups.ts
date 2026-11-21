@@ -45,7 +45,7 @@ export const Route = createFileRoute('/api/meetups')({
               .from(meetupMembers).innerJoin(profiles, eq(profiles.userId, meetupMembers.userId))
               .where(and(eq(meetupMembers.meetupId, row.id), eq(meetupMembers.status, 'requested')))
             : []
-          items.push({ ...row, approvedCount: memberCount?.value ?? 0, membershipStatus: mine?.status ?? null, conversationId: conversation?.id ?? null, pendingRequests })
+          items.push({ ...row, hostName: row.hostName ?? 'Community member', approvedCount: memberCount?.value ?? 0, membershipStatus: mine?.status ?? null, conversationId: conversation?.id ?? null, pendingRequests })
         }
         return jsonOk({ meetups: items })
       } catch (error) {
