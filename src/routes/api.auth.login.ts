@@ -58,6 +58,7 @@ export const Route = createFileRoute('/api/auth/login')({
             status: 200,
             headers: {
               'Content-Type': 'application/json',
+              'Cache-Control': 'no-store',
               'Set-Cookie': `db_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure}`,
             },
           })
