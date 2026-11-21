@@ -207,7 +207,7 @@ function App() {
         <div className="sidebar-label">YOUR SPACE</div>
         <nav className="side-nav" aria-label="Main navigation">
           <NavButton active={tab === 'discover'} onClick={() => setTab('discover')} icon={<Compass size={19} />} label="Discover" />
-          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" count="8" />
+          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" count={String(meetups.length)} />
           <NavButton active={tab === 'places'} onClick={() => setTab('places')} icon={<MapPin size={19} />} label="Places & events" />
           <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" count="2" />
         </nav>
@@ -228,7 +228,7 @@ function App() {
       <main className="main-area" id="top">
         <header className="topbar">
           <button className="mobile-brand" onClick={() => setTab('discover')}><span className="brand-mark"><Wine size={18} /></span> drinkingbuddies</button>
-          <div className="location-pill"><MapPin size={15} /><span>Nairobi, Kenya</span><ChevronDown size={14} /></div>
+          <div className="location-pill"><MapPin size={15} /><span>{profile?.homeArea ?? "Set your area"}</span><ChevronDown size={14} /></div>
           <div className="top-actions">{authStatus === 'signed_in' ? <button className="signin-link" onClick={signOut}>Sign out</button> : <button className="signin-link" onClick={() => window.location.assign('/login')}>Sign in</button>}<button className="icon-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={19} /><i /></button><button className="top-avatar" onClick={() => authStatus === 'signed_in' ? setShowProfileForm(true) : window.location.assign('/login')}>{(profile?.displayName ?? currentUser?.email ?? 'Y').slice(0, 1).toUpperCase()}</button></div>
         </header>
 
@@ -240,14 +240,14 @@ function App() {
 
           <section className="quick-stats">
             <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>{profiles.length}</b><small>people in your feed</small></span></div>
-            <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>8</b><small>meetups this week</small></span></div>
-            <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>12</b><small>places to explore</small></span></div>
+            <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>{meetups.length}</b><small>sample meetups</small></span></div>
+            <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>{venues.length}</b><small>sample venues</small></span></div>
             <div className="stat stat-note"><span className="online-avatars"><i>M</i><i>B</i><i>N</i></span><span><b>People are making plans</b><small>See what’s happening around you</small></span></div>
           </section>
 
           <div className="section-tabs" role="tablist" aria-label="Discovery sections">
             <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
-            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups <span>8</span></button>
+            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups <span>{meetups.length}</span></button>
             <button role="tab" aria-selected={tab === 'places'} className={tab === 'places' ? 'selected' : ''} onClick={() => setTab('places')}>Places & events</button>
           </div>
 
