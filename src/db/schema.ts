@@ -362,6 +362,7 @@ export const meetupBookings = pgTable('meetup_bookings', {
   refundPolicySnapshot: jsonb('refund_policy_snapshot').$type<Record<string, unknown>>().notNull().default({}),
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
   cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   ...timestamps,
 }, (table) => [
   uniqueIndex('meetup_bookings_idempotency_uq').on(table.idempotencyKey),
