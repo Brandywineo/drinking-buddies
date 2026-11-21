@@ -76,11 +76,11 @@ async function postDaraja(path: string, body: Record<string, unknown>) {
 }
 
 export function normalizeMpesaPhone(input: string) {
-  const digits = input.replace(/\\D/g, '')
+  const digits = input.replace(/\D/g, '')
   const normalized = digits.startsWith('0') ? `254${digits.slice(1)}`
     : digits.startsWith('7') || digits.startsWith('1') ? `254${digits}`
       : digits
-  if (!/^254[17]\\d{8}$/.test(normalized)) throw new Error('Enter a valid Kenyan M-PESA phone number')
+  if (!/^254[17]\d{8}$/.test(normalized)) throw new Error('Enter a valid Kenyan M-PESA phone number')
   return normalized
 }
 
