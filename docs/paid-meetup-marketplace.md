@@ -54,7 +54,7 @@ Server-side environment variables only. Never expose these values through `VITE_
 - `MPESA_B2C_INITIATOR_NAME`
 - `MPESA_B2C_SECURITY_CREDENTIAL` — Safaricom-encrypted initiator credential
 - `MPESA_B2C_RESULT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/b2c`
-- `MPESA_B2C_TIMEOUT_URL` — public HTTPS timeout callback URL
+- `MPESA_B2C_TIMEOUT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/b2c-timeout`
 
 ### Reversals
 
@@ -63,7 +63,7 @@ Server-side environment variables only. Never expose these values through `VITE_
 - `MPESA_REVERSAL_RECEIVER_PARTY`
 - `MPESA_REVERSAL_IDENTIFIER_TYPE`
 - `MPESA_REVERSAL_RESULT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/reversal`
-- `MPESA_REVERSAL_TIMEOUT_URL` — public HTTPS timeout callback URL
+- `MPESA_REVERSAL_TIMEOUT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/reversal-timeout`
 
 ### Admin access
 
