@@ -14,7 +14,7 @@ function VerifyEmailPage() {
       setState('error'); setMessage('This verification link is missing its token.')
       return
     }
-    fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`)
+    fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) })
       .then(async (response) => {
         const result = await response.json()
         if (!response.ok) throw new Error(result.error?.message ?? 'Verification failed.')
