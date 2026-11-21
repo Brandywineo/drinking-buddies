@@ -21,7 +21,7 @@ export const meetupPricingType = pgEnum('meetup_pricing_type', ['free', 'paid'])
 export const hostMembershipPlan = pgEnum('host_membership_plan', ['free_trial', 'premium_monthly', 'premium_annual'])
 export const meetupBookingStatus = pgEnum('meetup_booking_status', ['pending_payment', 'confirmed', 'cancelled', 'refunded', 'attended', 'no_show'])
 export const hostPayoutStatus = pgEnum('host_payout_status', ['requested', 'approved', 'processing', 'paid', 'failed', 'rejected'])
-export const walletEntryKind = pgEnum('wallet_entry_kind', ['booking_credit', 'platform_fee', 'processor_fee', 'refund_debit', 'payout_debit', 'payout_reversal', 'adjustment'])
+export const walletEntryKind = pgEnum('wallet_entry_kind', ['booking_credit', 'platform_fee', 'processor_fee', 'refund_debit', 'payout_debit', 'payout_reversal', 'payout_reserve', 'payout_release', 'booking_release', 'adjustment'])
 export const meetupMemberStatus = pgEnum('meetup_member_status', ['requested', 'approved', 'declined', 'left', 'removed'])
 export const venueApprovalStatus = pgEnum('venue_approval_status', ['pending', 'approved', 'rejected', 'suspended'])
 export const subscriptionStatus = pgEnum('subscription_status', ['trialing', 'active', 'past_due', 'cancelled', 'expired'])
@@ -412,6 +412,9 @@ export const hostPayouts = pgTable('host_payouts', {
   providerReference: varchar('provider_reference', { length: 180 }),
   status: hostPayoutStatus('status').notNull().default('requested'),
   failureReason: varchar('failure_reason', { length: 1000 }),
+  reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
   requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp('processed_at', { withTimezone: true }),
   ...timestamps,

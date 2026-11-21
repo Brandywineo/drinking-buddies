@@ -43,6 +43,13 @@
       "when": 1795564800002,
       "tag": "0005_booking_reservation_expiry",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795564800003,
+      "tag": "0006_marketplace_payouts",
+      "breakpoints": true
     }
   ]
 }

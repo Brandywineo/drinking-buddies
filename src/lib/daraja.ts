@@ -135,3 +135,39 @@ export async function queryStkPush(checkoutRequestId: string) {
     CheckoutRequestID: checkoutRequestId,
   })
 }
+
+export async function initiateB2CPayout(input: { phone: string; amountMinor: number; reference: string }) {
+  if (process.env.MPESA_ENV !== 'sandbox') throw new Error('Live B2C payouts are disabled')
+  const config = getDarajaConfig()
+  const initiator = required('MPESA_B2C_INITIATOR_NAME')
+  const securityCredential = required('MPESA_B2C_SECURITY_CREDENTIAL')
+  const resultUrl = required('MPESA_B2C_RESULT_URL')
+  const timeoutUrl = required('MPESA_B2C_TIMEOUT_URL')
+  if (!resultUrl.startsWith('https://') || !timeoutUrl.startsWith('https://')) {
+    throw new Error('Daraja B2C callback URLs must use HTTPS')
+  }
+  if (input.amountMinor % 100 !== 0) throw new Error('M-PESA B2C amount must be whole shillings')
+  const amount = input.amountMinor / 100
+  if (!Number.isSafeInteger(amount) || amount < 1) throw new Error('Invalid B2C amount')
+  const result = await postDaraja('/mpesa/b2c/v3/paymentrequest', {
+    OriginatorConversationID: input.reference,
+    InitiatorName: initiator,
+    SecurityCredential: securityCredential,
+    CommandID: 'BusinessPayment',
+    Amount: amount,
+    PartyA: config.shortcode,
+    PartyB: normalizeMpesaPhone(input.phone),
+    Remarks: 'Marketplace host payout',
+    QueueTimeOutURL: timeoutUrl,
+    ResultURL: resultUrl,
+    Occasion: 'Host payout',
+  })
+  if (typeof result.ConversationID !== 'string' || typeof result.OriginatorConversationID !== 'string') {
+    throw new Error('Daraja did not return B2C conversation references')
+  }
+  return {
+    conversationId: result.ConversationID,
+    originatorConversationId: result.OriginatorConversationID,
+    responseDescription: typeof result.ResponseDescription === 'string' ? result.ResponseDescription : 'Payout request accepted for processing',
+  }
+}
