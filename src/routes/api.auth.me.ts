@@ -34,7 +34,7 @@ export const Route = createFileRoute('/api/auth/me')({
             )).limit(1)
 
           if (!session) return jsonError('Your session has expired.', 401, 'SESSION_EXPIRED')
-          return jsonOk({ user: { id: session.userId, email: session.email, displayName: session.displayName } })
+          return new Response(JSON.stringify({ data: { user: { id: session.userId, email: session.email, displayName: session.displayName } } }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
         } catch (error) {
           console.error('Session lookup failed', error)
           return jsonError('We could not load your session.', 500, 'SESSION_LOOKUP_FAILED')
