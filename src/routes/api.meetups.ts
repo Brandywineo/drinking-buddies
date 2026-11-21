@@ -40,7 +40,12 @@ export const Route = createFileRoute('/api/meetups')({
             ? await db.select({ id: conversations.id }).from(conversations)
               .where(and(eq(conversations.kind, 'meetup'), eq(conversations.meetupId, row.id))).limit(1)
             : []
-          items.push({ ...row, approvedCount: memberCount?.value ?? 0, membershipStatus: mine?.status ?? null, conversationId: conversation?.id ?? null })
+          const pendingRequests = userId === row.hostId
+            ? await db.select({ userId: meetupMembers.userId, displayName: profiles.displayName })
+              .from(meetupMembers).innerJoin(profiles, eq(profiles.userId, meetupMembers.userId))
+              .where(and(eq(meetupMembers.meetupId, row.id), eq(meetupMembers.status, 'requested')))
+            : []
+          items.push({ ...row, approvedCount: memberCount?.value ?? 0, membershipStatus: mine?.status ?? null, conversationId: conversation?.id ?? null, pendingRequests })
         }
         return jsonOk({ meetups: items })
       } catch (error) {
