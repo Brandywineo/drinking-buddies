@@ -58,7 +58,7 @@ function App() {
         </div>
         <div className="sidebar-bottom">
           <div className="safety-note"><ShieldCheck size={16} /><span>18+ community<br /><small>Meet kindly. Stay safe.</small></span></div>
-          <button className="profile-mini" onClick={() => notify('Profile settings will be available after sign-in.')}>
+          <button className="profile-mini" onClick={() => window.location.assign('/login')}>
             <span className="avatar avatar-small">K</span><span><b>Your profile</b><small>Complete your profile</small></span><ChevronDown size={15} />
           </button>
         </div>
@@ -68,7 +68,7 @@ function App() {
         <header className="topbar">
           <button className="mobile-brand" onClick={() => setTab('discover')}><span className="brand-mark"><Wine size={18} /></span> drinkingbuddies</button>
           <div className="location-pill"><MapPin size={15} /><span>Nairobi, Kenya</span><ChevronDown size={14} /></div>
-          <div className="top-actions"><button className="icon-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={19} /><i /></button><button className="top-avatar" onClick={() => notify('Sign in to manage your profile.')}>K</button></div>
+          <div className="top-actions"><button className="signin-link" onClick={() => window.location.assign('/login')}>Sign in</button><button className="icon-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={19} /><i /></button><button className="top-avatar" onClick={() => window.location.assign('/login')}>K</button></div>
         </header>
 
         <div className="content-wrap">
