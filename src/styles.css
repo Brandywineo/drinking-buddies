@@ -78,3 +78,5 @@ button{cursor:pointer}
 .verify-card{text-align:center;padding:42px 30px}.verify-card .auth-brand{justify-content:center;margin-top:0}.verify-icon{margin:12px auto}.error-icon{color:#ff9d88}.verify-card .auth-copy{margin-bottom:22px}.auth-link-button{display:flex;align-items:center;justify-content:center}.auth-foot-link{display:inline-block;margin-top:12px;font-size:11px}
 .spin{animation:spin 1.2s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:540px){.auth-card{padding:23px}.auth-card h1{font-size:25px}}
+
+.signin-link{border:0;background:none;color:#d8f36a;font-size:10px;font-weight:700}
