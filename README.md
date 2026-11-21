@@ -68,6 +68,10 @@ The local PostGIS container uses development-only credentials. Change them befor
 - `GET /api/discovery?area=<area>` — returns compatible discoverable profiles, excluding prior passes, outgoing likes, active matches and blocked users; selected home area is only returned when its owner sets location visibility to public.
 - `POST /api/likes` with `{ "userId": "<uuid>" }` — records a like and creates a match plus match conversation after a reciprocal like.
 - `POST /api/passes` with `{ "userId": "<uuid>" }` — records a pass so that profile is not shown again.
+- `GET /api/meetups` — lists upcoming published meetups with host, capacity, membership and pending host requests.
+- `POST /api/meetups` — creates a meetup, registers the host as an approved member and creates its group conversation.
+- `POST /api/meetups/<meetupId>/join` / `DELETE /api/meetups/<meetupId>/join` — request or join, and leave a meetup.
+- `PATCH /api/meetups/<meetupId>/members/<userId>` — lets the host approve or decline a pending join request.
 - `GET /api/conversations` — lists the signed-in user's active match chats and approved meetup group chats.
 - `GET /api/conversations/<conversationId>/messages?before=<ISO timestamp>` — returns up to 50 authorized messages, newest page first in chronological display order.
 - `POST /api/conversations/<conversationId>/messages` with `{ "body": "..." }` — sends a message after server-side conversation membership, active-match and block checks.
@@ -94,18 +98,19 @@ Implemented in this branch:
 - Health and database readiness endpoints.
 - CI build/typecheck workflow.
 - Match and meetup conversation list, authorized message history and send-message APIs, plus responsive polling-based chat UI.
+- Live meetup discovery and creation, public joining or host approval, leave/rejoin, capacity checks, host request management and group conversations for approved members.
 
 Still to implement:
 - Google OAuth and phone OTP provider integrations.
 - Rate limiting, abuse controls and production security review for auth endpoints.
 - Profile photo storage.
 - WebSocket/SSE push delivery, read receipts and typing indicators; current chat refreshes by polling.
-- Meetup CRUD, approvals and group conversation membership.
+- Meetup editing/cancellation, host transfer and invitation-only private meetups.
 - Venue self-registration, admin approval UI and admin-configurable package management.
 - M-Pesa Daraja integration and payment callback verification.
 - Admin dashboard, moderation tooling and analytics.
 
-The meetup and venue sections still contain illustrative demo data. Do not treat those entries as real users, confirmed events or real-time venue availability.
+Meetups now come from the database and are real user-created plans. The venue section still contains illustrative demo data. Do not treat venue entries as real businesses or real-time availability.
 
 ## Security and operations
 
