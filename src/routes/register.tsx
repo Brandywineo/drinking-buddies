@@ -11,6 +11,7 @@ function RegisterPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const formElement = event.currentTarget
     setBusy(true); setError(''); setMessage('')
     const form = new FormData(event.currentTarget)
     try {
@@ -27,7 +28,7 @@ function RegisterPage() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error?.message ?? 'Registration failed.')
       setMessage('Your account is created. Check your inbox for the verification email before signing in.')
-      event.currentTarget.reset()
+      formElement.reset()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Something went wrong.')
     } finally {
