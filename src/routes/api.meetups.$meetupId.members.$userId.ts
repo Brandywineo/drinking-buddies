@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { meetupMembers, meetups } from '../db/schema'
@@ -25,23 +25,32 @@ export const Route = createFileRoute('/api/meetups/$meetupId/members/$userId')({
         .where(eq(meetups.id, parsedParams.data.meetupId)).limit(1)
       if (!meetup) return jsonError('Meetup not found.', 404, 'MEETUP_NOT_FOUND')
       if (meetup.hostId !== hostId) return jsonError('Only the host can manage join requests.', 403, 'FORBIDDEN')
-      const [member] = await db.select().from(meetupMembers).where(and(
-        eq(meetupMembers.meetupId, parsedParams.data.meetupId),
-        eq(meetupMembers.userId, parsedParams.data.userId),
-      )).limit(1)
-      if (!member || member.status !== 'requested') return jsonError('No pending request was found.', 404, 'REQUEST_NOT_FOUND')
-      if (parsedBody.data.status === 'approved') {
-        const [members] = await db.select({ value: count() }).from(meetupMembers).where(and(
-          eq(meetupMembers.meetupId, parsedParams.data.meetupId), eq(meetupMembers.status, 'approved'),
-        ))
-        if ((members?.value ?? 0) >= meetup.capacity) return jsonError('This meetup has reached capacity.', 409, 'MEETUP_FULL')
+      const result = await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT id FROM meetups WHERE id = ${parsedParams.data.meetupId} FOR UPDATE`)
+        const [member] = await tx.select().from(meetupMembers).where(and(
+          eq(meetupMembers.meetupId, parsedParams.data.meetupId),
+          eq(meetupMembers.userId, parsedParams.data.userId),
+        )).limit(1)
+        if (!member || member.status !== 'requested') return { error: 'REQUEST_NOT_FOUND' as const }
+        if (parsedBody.data.status === 'approved') {
+          const [members] = await tx.select({ value: count() }).from(meetupMembers).where(and(
+            eq(meetupMembers.meetupId, parsedParams.data.meetupId), eq(meetupMembers.status, 'approved'),
+          ))
+          if ((members?.value ?? 0) >= meetup.capacity) return { error: 'MEETUP_FULL' as const }
+        }
+        await tx.update(meetupMembers).set({
+          status: parsedBody.data.status,
+          joinedAt: parsedBody.data.status === 'approved' ? new Date() : null,
+          updatedAt: new Date(),
+        }).where(eq(meetupMembers.id, member.id))
+        return { userId: member.userId, status: parsedBody.data.status }
+      })
+      if ('error' in result) {
+        return result.error === 'MEETUP_FULL'
+          ? jsonError('This meetup has reached capacity.', 409, 'MEETUP_FULL')
+          : jsonError('No pending request was found.', 404, 'REQUEST_NOT_FOUND')
       }
-      await db.update(meetupMembers).set({
-        status: parsedBody.data.status,
-        joinedAt: parsedBody.data.status === 'approved' ? new Date() : null,
-        updatedAt: new Date(),
-      }).where(eq(meetupMembers.id, member.id))
-      return jsonOk({ userId: member.userId, status: parsedBody.data.status })
+      return jsonOk(result)
     } catch (error) {
       console.error('Meetup member update failed', error)
       return jsonError('We could not update this join request.', 500, 'MEETUP_MEMBER_UPDATE_FAILED')
