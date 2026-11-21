@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { conversations, matches, meetupMembers, meetups, messages, userBlocks } from '../db/schema'
@@ -48,7 +48,7 @@ export const Route = createFileRoute('/api/conversations/$conversationId/message
         const db = getDb()
         if (!await canAccessConversation(db, parsedParams.data.conversationId, userId)) return jsonError('Conversation not found or access denied.', 404, 'CONVERSATION_NOT_FOUND')
         const conditions = [eq(messages.conversationId, parsedParams.data.conversationId), isNull(messages.deletedAt)]
-        if (parsedQuery.data.before) conditions.push(gt(messages.createdAt, new Date(0)) as never)
+        if (parsedQuery.data.before) conditions.push(lt(messages.createdAt, new Date(parsedQuery.data.before)))
         const rows = await db.select({
           id: messages.id, senderId: messages.senderId, body: messages.body,
           createdAt: messages.createdAt, editedAt: messages.editedAt,
