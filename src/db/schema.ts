@@ -18,6 +18,7 @@ export const connectionIntent = pgEnum('connection_intent', ['drinking_buddies',
 export const locationVisibility = pgEnum('location_visibility', ['private', 'matches', 'public'])
 export const meetupVisibility = pgEnum('meetup_visibility', ['public', 'approval_required', 'private'])
 export const meetupPricingType = pgEnum('meetup_pricing_type', ['free', 'paid'])
+export const hostMembershipPlan = pgEnum('host_membership_plan', ['free_trial', 'premium_monthly', 'premium_annual'])
 export const meetupBookingStatus = pgEnum('meetup_booking_status', ['pending_payment', 'confirmed', 'cancelled', 'refunded', 'attended', 'no_show'])
 export const hostPayoutStatus = pgEnum('host_payout_status', ['requested', 'approved', 'processing', 'paid', 'failed', 'rejected'])
 export const walletEntryKind = pgEnum('wallet_entry_kind', ['booking_credit', 'platform_fee', 'processor_fee', 'refund_debit', 'payout_debit', 'payout_reversal', 'adjustment'])
@@ -324,6 +325,7 @@ export const userReports = pgTable('user_reports', {
 export const hostSubscriptions = pgTable('host_subscriptions', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  plan: hostMembershipPlan('plan').notNull().default('free_trial'),
   status: subscriptionStatus('status').notNull().default('trialing'),
   lockedPriceMinor: integer('locked_price_minor').notNull().default(0),
   currency: varchar('currency', { length: 3 }).notNull().default('KES'),
@@ -338,7 +340,7 @@ export const hostSubscriptions = pgTable('host_subscriptions', {
   providerSubscriptionReference: varchar('provider_subscription_reference', { length: 180 }),
   ...timestamps,
 }, (table) => [
-  index('host_subscriptions_user_idx').on(table.userId),
+  uniqueIndex('host_subscriptions_user_uq').on(table.userId),
   index('host_subscriptions_status_period_idx').on(table.status, table.currentPeriodEnd),
 ])
 
