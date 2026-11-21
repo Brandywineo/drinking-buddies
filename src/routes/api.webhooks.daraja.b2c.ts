@@ -47,11 +47,15 @@ export const Route = createFileRoute('/api/webhooks/daraja/b2c')({
           const amount = Number(resultParams.find((item) => item.Key === 'TransactionAmount')?.Value)
           const receiver = String(resultParams.find((item) => item.Key === 'ReceiverPartyPublicName')?.Value ?? '')
           const expectedPhone = locked.destinationReference ?? ''
-          const succeeded = Number(result.ResultCode) === 0
-            && typeof receipt === 'string' && receipt.length > 0
+          const successCode = Number(result.ResultCode) === 0
+          const detailsMatch = typeof receipt === 'string' && receipt.length > 0
             && amount * 100 === locked.amountMinor
             && receiver.startsWith(expectedPhone)
-          if (succeeded) {
+          if (successCode && !detailsMatch) {
+            await tx.update(paymentWebhookEvents).set({ processingError: 'B2C success callback did not match expected amount, receipt and destination; payout remains reserved' }).where(eq(paymentWebhookEvents.id, event.id))
+            return
+          }
+          if (successCode) {
             await tx.update(hostPayouts).set({
               status: 'paid', providerReference: conversationId ?? locked.providerReference,
               processedAt: now, metadata: { ...locked.metadata, transactionId: receipt, resultDescription: result.ResultDesc, resultAmount: amount, receiver },
