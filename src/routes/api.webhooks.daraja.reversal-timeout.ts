@@ -1,3 +1,4 @@
+import { isDarajaCallbackAuthorized } from '../lib/daraja-callback-auth'
 import { createFileRoute } from '@tanstack/react-router'
 import { and, eq, sql } from 'drizzle-orm'
 import { getDb } from '../db'
@@ -6,6 +7,7 @@ import { marketplaceRefunds, paymentWebhookEvents } from '../db/schema'
 export const Route = createFileRoute('/api/webhooks/daraja/reversal-timeout')({
   server: { handlers: {
     POST: async ({ request }) => {
+      if (!isDarajaCallbackAuthorized(request)) return Response.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
       let payload: unknown
       try { payload = await request.json() } catch { return Response.json({ ResultCode: 0, ResultDesc: 'Accepted' }) }
       const body = payload as Record<string, unknown>
