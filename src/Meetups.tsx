@@ -10,6 +10,9 @@ type Meetup = {
   endsAt: string | null
   area: string
   capacity: number
+  pricingType: 'free' | 'paid'
+  priceMinor: number
+  currency: string
   visibility: 'public' | 'approval_required'
   hostId: string
   hostName: string
@@ -40,6 +43,10 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
   const [endsAt, setEndsAt] = useState('')
   const [capacity, setCapacity] = useState('8')
   const [visibility, setVisibility] = useState<'public' | 'approval_required'>('approval_required')
+  const [pricingType, setPricingType] = useState<'free' | 'paid'>('free')
+  const [priceKes, setPriceKes] = useState('')
+  const [refundBeforeHours, setRefundBeforeHours] = useState('24')
+  const [refundPercentage, setRefundPercentage] = useState('100')
 
   const loadMeetups = useCallback(async () => {
     setLoading(true)
@@ -70,7 +77,10 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
           title, description: description || null, area,
           startsAt: new Date(startsAt).toISOString(),
           endsAt: endsAt ? new Date(endsAt).toISOString() : null,
-          capacity: Number(capacity), visibility,
+          capacity: Number(capacity), visibility, pricingType,
+          priceMinor: pricingType === 'paid' ? Math.round(Number(priceKes) * 100) : 0,
+          currency: 'KES',
+          refundPolicy: { kind: 'host_policy', refundBeforeHours: Number(refundBeforeHours), refundPercentage: Number(refundPercentage) },
         }),
       })
       const result = await response.json()
@@ -141,7 +151,7 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
             <span className="eyebrow">COMMUNITY MEETUP · HOSTED BY {meetup.hostName.toUpperCase()}</span>
             <h3>{meetup.title}</h3>
             <p>{meetup.description || 'A community meetup. Message the group after your place is confirmed.'}</p>
-            <div className="meetup-meta"><span><CalendarDays size={14} /> {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><span><Clock size={14} /> {date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span></div>
+            <div className="meetup-meta">{meetup.pricingType === 'paid' && <span><strong>KES {(meetup.priceMinor / 100).toLocaleString()}</strong> per person</span>}<span><CalendarDays size={14} /> {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><span><Clock size={14} /> {date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span></div>
             <div className="meetup-footer"><span><Users size={14} /> {meetup.approvedCount}/{meetup.capacity} joined</span>
               {isHost ? <span className="meetup-status">You host this</span> :
                 meetup.membershipStatus === 'approved' ? <span className="meetup-action-group"><span className="meetup-status"><Check size={13} /> Joined</span><button onClick={() => leaveMeetup(meetup)} disabled={busyId === meetup.id}>Leave</button></span> :
@@ -161,6 +171,8 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
         <label>Area or public meeting place<input required minLength={2} maxLength={160} value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Westlands, Nairobi" /></label>
         <div className="form-row"><label>Starts<input type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} /></label><label>Ends (optional)<input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} /></label></div>
         <div className="form-row"><label>Maximum people<input type="number" min="2" max="100" required value={capacity} onChange={(e) => setCapacity(e.target.value)} /></label><label>Joining<select value={visibility} onChange={(e) => setVisibility(e.target.value as typeof visibility)}><option value="approval_required">Host approval</option><option value="public">Open joining</option></select></label></div>
+        <label>Meetup type<select value={pricingType} onChange={(e) => setPricingType(e.target.value as typeof pricingType)}><option value="free">Free meetup</option><option value="paid">Paid meetup / tickets</option></select></label>
+        {pricingType === 'paid' && <><label>Ticket price (KES)<input type="number" min="1" max="1000000" step="0.01" required value={priceKes} onChange={(e) => setPriceKes(e.target.value)} placeholder="e.g. 1500" /></label><div className="form-row"><label>Refund until (hours before)<input type="number" min="0" max="720" required value={refundBeforeHours} onChange={(e) => setRefundBeforeHours(e.target.value)} /></label><label>Refund percentage<input type="number" min="0" max="100" required value={refundPercentage} onChange={(e) => setRefundPercentage(e.target.value)} /></label></div><p className="form-note">Paid meetup publishing starts with your premium host free trial. Payments will only be enabled after provider approval and testing.</p></>}
         <label>What's the plan?<textarea rows={3} maxLength={1200} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tell people what kind of meetup you're planning…" /></label>
         {formError && <p className="meetup-form-error" role="alert">{formError}</p>}
         <button className="primary-button modal-submit" type="submit" disabled={busyId === 'create'}>{busyId === 'create' ? 'Creating…' : 'Publish meetup'}</button>

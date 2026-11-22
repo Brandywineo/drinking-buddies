@@ -22,6 +22,7 @@ export const Route = createFileRoute('/api/meetups/$meetupId/join')({
           const [meetup] = await tx.select().from(meetups).where(eq(meetups.id, parsed.data.meetupId)).limit(1)
           if (!meetup || meetup.status !== 'published' || meetup.startsAt <= new Date()) return { error: 'NOT_FOUND' as const }
           if (meetup.hostId === userId) return { error: 'HOST' as const }
+          if (meetup.pricingType === 'paid') return { error: 'PAYMENT_REQUIRED' as const }
           const [existing] = await tx.select().from(meetupMembers).where(and(
             eq(meetupMembers.meetupId, meetup.id), eq(meetupMembers.userId, userId),
           )).limit(1)
@@ -42,6 +43,7 @@ export const Route = createFileRoute('/api/meetups/$meetupId/join')({
         if ('error' in result) {
           if (result.error === 'NOT_FOUND') return jsonError('This meetup is unavailable.', 404, 'MEETUP_NOT_FOUND')
           if (result.error === 'HOST') return jsonError('You are already hosting this meetup.', 409, 'ALREADY_HOST')
+          if (result.error === 'PAYMENT_REQUIRED') return jsonError('Book a ticket to join this paid meetup.', 409, 'PAYMENT_REQUIRED')
           return jsonError('This meetup has reached capacity.', 409, 'MEETUP_FULL')
         }
         return jsonOk({ membershipStatus: result.status })

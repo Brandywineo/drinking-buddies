@@ -54,6 +54,16 @@ function render(job: EmailJob) {
     }
   }
 
+  if (job.template_key === 'host_membership_renewal') {
+    const renewsAt = escapeHtml(String(job.payload.renewsAt ?? 'soon'))
+    const url = process.env.APP_URL ?? 'http://localhost:3000'
+    return {
+      subject: 'Your Drinking Buddies host membership is ending soon',
+      text: 'Hi ' + name + ', your host membership period ends on ' + renewsAt + '. Renew before it expires to continue publishing paid meetups. Sign in at ' + url + '.',
+      html: '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#202515"><h1>Host membership renewal</h1><p>Hi ' + name + ',</p><p>Your host membership period ends on ' + renewsAt + '.</p><p>Renew before it expires to continue publishing paid meetups.</p><p><a href="' + escapeHtml(url) + '">' + escapeHtml(url) + '</a></p></div>',
+    }
+  }
+
   return {
     subject: 'A message from Drinking Buddies',
     text: 'You have a new notification from Drinking Buddies.',

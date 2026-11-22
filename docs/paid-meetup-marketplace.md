@@ -1,67 +1,109 @@
-# Paid meetups and host marketplace — technical plan
+# Paid meetups and host marketplace
 
-## Confirmed product rules
+## Confirmed launch rules
 
-- Free meetups remain available to all eligible hosts.
-- Paid meetups require a host subscription in `trialing` or `active` state.
-- Premium host membership starts with the `free_trial` plan. Trial length, paid price, billing interval, and eligibility rules live in platform settings; the trial is granted once per host and is created when the host first attempts to publish a paid meetup.
-- A paid meetup cannot be published unless the host has a non-expired `trialing` or `active` premium membership.
-- Booking commission is admin-configurable and snapshotted in basis points on each booking.
-- Host payout release is admin-configurable as a percentage schedule. Each schedule can define pre-event and post-event tranches and their release conditions.
-- Hosts choose a cancellation/refund policy from admin-approved options. The selected policy is snapshotted on each booking so later policy edits do not rewrite existing bookings.
-- Payouts require completed host verification and an eligible provider/country/currency route.
-- Wallet balances are backed by an append-only transaction ledger. Balance summary columns are updated in the same database transaction as each ledger entry.
-- All amounts use integer minor units and an explicit ISO currency code.
+- Free meetups remain available to eligible hosts.
+- Paid meetups require a host membership in `trialing` or `active` state.
+- Host membership starts with one configurable free trial. Trial length and monthly/annual prices are controlled by platform settings.
+- Attendee checkout is Kenya-only M-PESA through Safaricom Daraja STK Push.
+- Host payouts are Kenya-only M-PESA wallet transfers through Daraja B2C to the host's verified account phone number.
+- Host earnings become available 24 hours after the meetup ends (or three hours after its start when no end time is supplied).
+- Every host payout requires admin approval.
+- Refunds prefer a Daraja reversal of the original STK transaction, where the Safaricom shortcode and permissions support it. Refunds are admin-reviewed.
+- The first launch does not include international card payments or bank-account payouts.
+- All live money movement remains disabled. Sandbox is the only supported execution mode in this implementation.
 
-## Payment-provider decision
+## Payment and settlement model
 
-### Safaricom Daraja / M-PESA — launch integration
+1. An attendee creates a pending booking. Price, commission and refund policy are snapshotted on the booking.
+2. The attendee starts checkout with the same M-PESA number verified on their account.
+3. The server creates an STK Push and stores the Daraja checkout identifiers.
+4. The booking remains pending until the Daraja callback is correlated with the stored checkout request and a server-to-server STK query reports success. The callback amount, receipt and payer phone must match the payment record.
+5. A successful, on-time payment confirms the booking and credits the host's pending wallet balance with the snapshotted host net. Duplicate callbacks cannot credit the same booking twice.
+6. The release worker moves host earnings from pending to available 24 hours after the meetup ends. Ledger idempotency prevents duplicate releases.
+7. The host requests a payout to their verified Kenyan M-PESA number. The requested amount is moved from available to reserved and requires an admin decision.
+8. After approval, Daraja B2C is initiated. The payout is only marked paid after a matching successful result callback with the expected amount, receipt and destination. Failed payouts release the reservation; uncertain submissions remain reserved for reconciliation.
 
-Daraja is the selected payment integration for this marketplace. The attendee checkout should use M-PESA STK Push: the server creates a checkout request, the attendee approves it on their phone, and the booking remains pending until a verified Daraja callback confirms the transaction. The callback must be authenticated/validated, persisted in the webhook inbox, and processed idempotently. A browser redirect or client-side success message must never confirm a booking.
+A late successful STK payment after a booking reservation has expired is recorded for manual reconciliation and is not automatically confirmed or credited to the host. The platform must resolve the attendee's money before any capacity conflict is treated as complete.
 
-Daraja is an M-PESA integration, not a global card-acquiring service. It supports M-PESA payment flows; it does not by itself provide worldwide Visa/Mastercard acceptance. If the product still requires attendees worldwide to pay by international card, that requires a separately approved card provider or payment rail. Do not describe Daraja-only checkout as global card acceptance.
+## Refund model
 
-Host disbursement must use a separately defined Daraja-supported payout flow and approved Safaricom shortcode/permissions. If hosts are paid to M-PESA wallets, the likely flow is Daraja B2C to verified Kenyan M-PESA numbers. Do not assume B2C sends funds directly to bank accounts. Confirm the payout destination and Safaricom's approval of the marketplace funds flow before implementing live disbursements.
+- The booking stores a snapshot of the host's refund cutoff and percentage.
+- Attendees may request cancellation before the meetup starts.
+- Eligible refunds enter an admin review queue.
+- Before initiating a reversal, the system reserves the host's proportional share from pending/available wallet balances.
+- A successful Daraja reversal marks the booking refunded and debits the host share. A failed reversal releases the host reserve.
+- If the original M-PESA receipt is missing, the refund remains a manual reconciliation case.
+- Reversal credentials, receiver party and identifier type must be configured from Safaricom's approved shortcode setup. Do not guess these values.
 
-For launch, keep payment and payout credentials server-side, use Daraja sandbox first, verify callbacks, reconcile the shortcode statement, and keep live transactions disabled until Safaricom has approved the exact collection, refunds, and host-disbursement model. No automatic split settlement is assumed; host release remains controlled by the platform's admin-configured schedule and ledger.
+## Daraja configuration
 
+Server-side environment variables only. Never expose these values through `VITE_*` variables.
 
-## Architecture
+### STK Push
 
-1. **Domain layer:** bookings, subscription entitlement, commission snapshots, refund policy snapshots, wallet ledger, payout schedules and reconciliation are provider-neutral.
-2. **Provider adapter:** an interface owns checkout initialization, payment verification, refund execution, recipient onboarding, payout initiation and payout status lookup. No route calls a provider SDK directly.
-3. **Capability registry:** a provider/country/currency matrix determines whether checkout and payout are enabled. Checkout capability and payout capability are separate; global card acceptance must never imply global host payouts.
-4. **Webhook inbox:** persist provider event ID before processing, enforce uniqueness, apply provider-specific authenticity and transaction-correlation checks, and process idempotently.
-5. **Daraja launch flow:** M-PESA STK Push for attendee collection, with callback validation and transaction reconciliation. Host disbursement is a separate approved Daraja payout capability (for example, B2C to verified M-PESA wallets); do not assume bank-account payouts or international card acceptance.
-6. **Ledger:** immutable double-entry-style financial events with a transactionally maintained wallet summary. Never accept wallet balance or commission amounts from the client.
-7. **Payout orchestration:** admin-configured release schedule, risk/refund reserve, host KYC state, country/currency capability and provider settlement status all gate release.
+- `MPESA_ENV=sandbox`
+- `MPESA_CONSUMER_KEY`
+- `MPESA_CONSUMER_SECRET`
+- `MPESA_SHORTCODE`
+- `MPESA_PASSKEY`
+- `MPESA_CALLBACK_URL` — public HTTPS URL for `POST /api/webhooks/daraja`
 
-## Planned API
+### B2C payouts
 
-- `POST /api/meetups/:meetupId/bookings` — implemented: create an idempotent pending paid booking, snapshot price/commission/refund policy, and reserve capacity for 15 minutes. Reservations count against capacity until they expire; confirmed bookings remain counted. Daraja payment initialization is explicitly disabled pending sandbox implementation and Safaricom approval.
-- Paid meetups cannot use the free meetup join endpoint; attendees must use the ticket-booking flow. The current booking endpoint supports public paid meetups; approval-required paid meetups are rejected until an approval/payment sequence is designed.
-- `GET /api/bookings` and `GET /api/bookings/:bookingId` — attendee booking history/details.
-- `POST /api/bookings/:bookingId/checkout` — initialize provider checkout.
-- `POST /api/bookings/:bookingId/cancel` — apply the booking's snapshotted host policy and request refund when due.
-- `GET /api/host/dashboard` and `GET /api/host/wallet` — host revenue and balance views.
-- `POST /api/host/payouts` — request a payout, subject to release policy and provider corridor.
-- `POST /api/webhooks/payments/:provider` — signed, idempotent provider event intake.
-- `GET/PUT /api/admin/finance/settings` — commission, trial, payout schedule, refund policy options and provider capabilities.
-- `GET /api/admin/finance/payouts` and `POST /api/admin/finance/payouts/:id/decision` — admin review and release.
+- `MPESA_B2C_INITIATOR_NAME`
+- `MPESA_B2C_SECURITY_CREDENTIAL` — Safaricom-encrypted initiator credential
+- `MPESA_B2C_RESULT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/b2c`
+- `MPESA_B2C_TIMEOUT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/b2c-timeout`
 
-## Delivery sequence
+### Reversals
 
-1. Database and immutable financial model (this first implementation slice).
-2. Host trial entitlement and paid meetup create/edit/list UI.
-3. Booking lifecycle foundation: pending ticket reservation and capacity checks implemented; attendee booking history/details and booking UI remain to be built.
-4. Daraja STK Push checkout and callback processing, initially in sandbox mode.
-5. Host wallet, release scheduler and Kenya-only payouts.
-6. Admin finance controls, reconciliation, refunds and audit views.
-7. Add further provider adapters only after written approval for the platform's legal entity and each host payout country.
+- `MPESA_REVERSAL_INITIATOR_NAME`
+- `MPESA_REVERSAL_SECURITY_CREDENTIAL`
+- `MPESA_REVERSAL_RECEIVER_PARTY`
+- `MPESA_REVERSAL_IDENTIFIER_TYPE`
+- `MPESA_REVERSAL_RESULT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/reversal`
+- `MPESA_REVERSAL_TIMEOUT_URL` — public HTTPS URL for `POST /api/webhooks/daraja/reversal-timeout`
 
-## Launch gates
+### Admin access
 
-- Safaricom approval of the exact marketplace funds flow: STK Push collection, settlement to the business shortcode, refunds/reversals, and the chosen host payout mechanism (including B2C if paying M-PESA wallets). Daraja does not provide global card acceptance; any international card requirement needs a separate approved provider.
-- Kenyan legal/accounting review of marketplace funds flow, consumer cancellation rights, tax and any licensing/holding-funds implications.
-- Daraja sandbox tests for STK Push, callback correlation, duplicate callbacks, timeouts, reversals/refunds and reconciliation.
-- No live payout or paid meetup launch until the provider and compliance gates are approved.
+- `ADMIN_EMAILS` — comma-separated normalized email allowlist for finance administration.
+
+Never commit actual credentials. Obtain the correct initiator, security credential, shortcode, callback registration and transaction permissions from Safaricom. Daraja callback endpoints must be public HTTPS endpoints. Callback data is correlated against stored request identifiers and transaction values; do not treat a client redirect as proof of payment.
+
+## Implemented API surface
+
+- `POST /api/meetups/:meetupId/bookings` — idempotent paid-ticket reservation.
+- `POST /api/bookings/:bookingId/checkout` — Daraja STK Push.
+- `GET /api/bookings/:bookingId/payment` — attendee payment status.
+- `POST /api/webhooks/daraja` — STK callback and payment settlement.
+- `POST /api/bookings/:bookingId/cancel` — attendee cancellation and eligible refund request.
+- `GET /api/bookings/:bookingId/refund` — attendee refund status.
+- `POST /api/host/subscription/checkout` — host membership STK checkout.
+- `GET /api/host/wallet` — host wallet, ledger and payout history.
+- `GET/POST /api/host/payouts` — payout history and payout request.
+- `POST /api/webhooks/daraja/b2c` — B2C payout result callback.
+- `POST /api/webhooks/daraja/reversal` — reversal result callback.
+- `GET/PUT /api/admin/finance/settings` — commission, minimum payout, release hours and membership pricing.
+- `GET /api/admin/finance/payouts` and `POST /api/admin/finance/payouts/:payoutId/decision` — admin payout queue and approval/rejection.
+- `GET /api/admin/finance/refunds` and `POST /api/admin/finance/refunds/:refundId/decision` — admin refund queue and decision.
+
+Admin API access is restricted by the `ADMIN_EMAILS` environment allowlist plus an authenticated session. No client-supplied admin flag is trusted.
+
+## Background workers
+
+Run `bun run marketplace:release` on a recurring schedule (recommended every 15 minutes). It:
+- releases eligible host earnings after the configured delay;
+- expires ended host membership periods;
+- queues one renewal reminder during the final three days of a host membership period.
+
+Run `bun run email:worker` continuously to deliver queued email notifications, including host membership renewal reminders.
+
+## Important operational limitations
+
+- Daraja-only checkout is M-PESA, not global Visa/Mastercard acceptance.
+- Daraja B2C pays supported M-PESA wallet destinations; it is not a bank-transfer integration.
+- Safaricom must approve the marketplace collection, holding, reversal and B2C disbursement use case and the exact shortcode permissions before live launch.
+- Sandbox credentials and callback URLs must be configured before end-to-end provider tests can run.
+- Production mode is intentionally blocked in checkout, B2C and reversal services.
+- Finance settings and APIs exist; the production admin finance UI, automated reconciliation dashboard and operational alerts still need completion.
