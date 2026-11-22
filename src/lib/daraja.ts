@@ -1,3 +1,4 @@
+import { withDarajaCallbackToken } from './daraja-callback-auth'
 type DarajaConfig = {
   baseUrl: string
   consumerKey: string
@@ -110,7 +111,7 @@ export async function initiateStkPush(input: {
     PartyA: phone,
     PartyB: config.shortcode,
     PhoneNumber: phone,
-    CallBackURL: config.callbackUrl,
+    CallBackURL: withDarajaCallbackToken(config.callbackUrl),
     AccountReference: input.accountReference.slice(0, 12),
     TransactionDesc: input.description.slice(0, 13),
   })
@@ -141,8 +142,8 @@ export async function initiateB2CPayout(input: { phone: string; amountMinor: num
   const config = getDarajaConfig()
   const initiator = required('MPESA_B2C_INITIATOR_NAME')
   const securityCredential = required('MPESA_B2C_SECURITY_CREDENTIAL')
-  const resultUrl = required('MPESA_B2C_RESULT_URL')
-  const timeoutUrl = required('MPESA_B2C_TIMEOUT_URL')
+  const resultUrl = withDarajaCallbackToken(required('MPESA_B2C_RESULT_URL'))
+  const timeoutUrl = withDarajaCallbackToken(required('MPESA_B2C_TIMEOUT_URL'))
   if (!resultUrl.startsWith('https://') || !timeoutUrl.startsWith('https://')) {
     throw new Error('Daraja B2C callback URLs must use HTTPS')
   }
@@ -178,8 +179,8 @@ export async function initiateReversal(input: { transactionId: string; amountMin
   const securityCredential = required('MPESA_REVERSAL_SECURITY_CREDENTIAL')
   const receiverParty = required('MPESA_REVERSAL_RECEIVER_PARTY')
   const receiverIdentifierType = required('MPESA_REVERSAL_IDENTIFIER_TYPE')
-  const resultUrl = required('MPESA_REVERSAL_RESULT_URL')
-  const timeoutUrl = required('MPESA_REVERSAL_TIMEOUT_URL')
+  const resultUrl = withDarajaCallbackToken(required('MPESA_REVERSAL_RESULT_URL'))
+  const timeoutUrl = withDarajaCallbackToken(required('MPESA_REVERSAL_TIMEOUT_URL'))
   if (!resultUrl.startsWith('https://') || !timeoutUrl.startsWith('https://')) {
     throw new Error('Daraja reversal callback URLs must use HTTPS')
   }
