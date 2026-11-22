@@ -1,3 +1,4 @@
+import { isDarajaCallbackAuthorized } from '../lib/daraja-callback-auth'
 import { createFileRoute } from '@tanstack/react-router'
 import { and, eq, sql } from 'drizzle-orm'
 import { getDb } from '../db'
@@ -22,6 +23,7 @@ function metadataValue(items: CallbackItem[], name: string) {
 export const Route = createFileRoute('/api/webhooks/daraja')({
   server: { handlers: {
     POST: async ({ request }) => {
+      if (!isDarajaCallbackAuthorized(request)) return Response.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
       let payload: unknown
       try { payload = await request.json() } catch { return Response.json({ ResultCode: 0, ResultDesc: 'Accepted' }) }
       const callback = (payload as { Body?: { stkCallback?: StkCallback } })?.Body?.stkCallback
