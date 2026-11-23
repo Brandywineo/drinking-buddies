@@ -48,6 +48,7 @@ export async function canAccessMemoryAlbum(albumId: string, userId: string) {
   const [album] = await db.select().from(memoryAlbums).where(eq(memoryAlbums.id, albumId)).limit(1)
   if (!album) return null
   if (album.creatorId === userId || album.visibility === 'public') return album
+  if (album.visibility === 'private') return null
   if (album.meetupId) {
     const [meetup] = await db.select({ hostId: meetups.hostId }).from(meetups).where(eq(meetups.id, album.meetupId)).limit(1)
     if (meetup?.hostId === userId) return album
