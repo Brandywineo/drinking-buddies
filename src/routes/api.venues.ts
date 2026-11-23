@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, desc, eq, ilike, or } from 'drizzle-orm'
+import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { venues } from '../db/schema'
+import { venuePhotos, venues } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
@@ -31,6 +31,7 @@ export const Route = createFileRoute('/api/venues')({
         const rows = await db.select({
           id: venues.id, name: venues.name, description: venues.description, category: venues.category,
           address: venues.address, area: venues.area, city: venues.city, websiteUrl: venues.websiteUrl,
+          coverPhotoUrl: sql<string | null>`(SELECT '/api/venue-photos/' || ${venuePhotos.id}::text FROM venue_photos WHERE venue_id = ${venues.id} AND status = 'approved' ORDER BY created_at DESC LIMIT 1)`,
         }).from(venues).where(and(...filters)).orderBy(desc(venues.updatedAt)).limit(100)
         return jsonOk({ venues: rows })
       } catch (error) {

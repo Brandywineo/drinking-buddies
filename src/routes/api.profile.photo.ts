@@ -4,8 +4,39 @@ import { getDb } from '../db'
 import { profiles } from '../db/schema'
 import { storeCommunityFile } from '../lib/community-media'
 import { getAuthenticatedUserId } from '../lib/session'
-import { jsonError,jsonOk } from '../lib/http'
-export const Route=createFileRoute('/api/profile/photo')({server:{handlers:{POST:async({request})=>{
- const userId=await getAuthenticatedUserId(request);if(!userId)return jsonError('Sign in to upload a profile photo.',401,'UNAUTHENTICATED')
- try{const form=await request.formData();const file=form.get('file');if(!(file instanceof File))return jsonError('Choose a JPG, PNG or WebP photo.',400,'PHOTO_REQUIRED');const stored=await storeCommunityFile(file,false);const [profile]=await getDb().update(profiles).set({avatarUrl:stored.key,updatedAt:new Date()}).where(eq(profiles.userId,userId)).returning({userId:profiles.userId});if(!profile)return jsonError('Create your profile before uploading a photo.',409,'PROFILE_REQUIRED');return jsonOk({avatarUrl:'/api/profile/photo/'+userId})}catch(error){return jsonError(error instanceof Error&&/Use JPG|smaller|does not match/.test(error.message)?error.message:'We could not save your profile photo.',400,'PHOTO_UPLOAD_FAILED')}
-}}}})
+import { jsonError, jsonOk } from '../lib/http'
+
+export const Route = createFileRoute('/api/profile/photo')({
+ server: { handlers: {
+  POST: async ({ request }) => {
+   const userId = await getAuthenticatedUserId(request)
+   if (!userId) return jsonError('Sign in to upload a profile photo.', 401, 'UNAUTHENTICATED')
+   try {
+    const db = getDb()
+    const [existing] = await db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.userId, userId)).limit(1)
+    if (!existing) return jsonError('Save your profile details before adding a photo.', 409, 'PROFILE_REQUIRED')
+    const form = await request.formData()
+    const file = form.get('file')
+    if (!(file instanceof File)) return jsonError('Choose a JPG, PNG or WebP photo.', 400, 'PHOTO_REQUIRED')
+    const stored = await storeCommunityFile(file, false)
+    await db.update(profiles).set({ avatarUrl: stored.key, updatedAt: new Date() }).where(eq(profiles.userId, userId))
+    return jsonOk({ avatarUrl: '/api/profile/photo/' + userId })
+   } catch (error) {
+    return jsonError(error instanceof Error && /Use JPG|smaller|does not match/.test(error.message) ? error.message : 'We could not save your profile photo.', 400, 'PHOTO_UPLOAD_FAILED')
+   }
+  },
+  DELETE: async ({ request }) => {
+   const userId = await getAuthenticatedUserId(request)
+   if (!userId) return jsonError('Sign in to remove your profile photo.', 401, 'UNAUTHENTICATED')
+   try {
+    const [profile] = await getDb().update(profiles).set({ avatarUrl: null, updatedAt: new Date() })
+     .where(eq(profiles.userId, userId)).returning({ userId: profiles.userId })
+    if (!profile) return jsonError('Create your profile first.', 409, 'PROFILE_REQUIRED')
+    return jsonOk({ avatarUrl: null })
+   } catch (error) {
+    console.error('Profile photo removal failed', error)
+    return jsonError('We could not remove your profile photo.', 500, 'PHOTO_REMOVE_FAILED')
+   }
+  },
+ } },
+})
