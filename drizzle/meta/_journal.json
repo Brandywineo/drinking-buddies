@@ -85,6 +85,13 @@
       "when": 1795824000000,
       "tag": "0011_profile_favourites",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795910400000,
+      "tag": "0012_go_out_squads",
+      "breakpoints": true
     }
   ]
 }
