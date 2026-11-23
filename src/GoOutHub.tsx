@@ -169,8 +169,8 @@ export function GoOutHub({ currentUserId, signedIn, onSignIn }: Props) {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error?.message ?? 'Could not invite this member.')
       setInviteEmail('')
-      setError('Invitation created. The member can join this squad from their squads list.')
       await refresh()
+      setError('Invitation created. The member can accept it from their squads list.')
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not invite this member.') }
     finally { setBusy(false) }
   }
