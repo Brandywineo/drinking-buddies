@@ -55,7 +55,7 @@ function AdminUsers() {
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-10 text-[var(--text-primary,#f5f5f5)]">
-      <Link to="/admin/" className="text-sm opacity-65">← Admin dashboard</Link>
+      <Link to="/admin" className="text-sm opacity-65">← Admin dashboard</Link>
       <header>
         <h1 className="text-3xl font-semibold">User management</h1>
         <p className="mt-2 text-sm opacity-65">Latest 200 accounts. Suspend or reactivate accounts when necessary.</p>
