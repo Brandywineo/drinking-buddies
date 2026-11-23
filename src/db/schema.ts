@@ -464,3 +464,24 @@ export const paymentWebhookEvents = pgTable('payment_webhook_events', {
   uniqueIndex('payment_webhook_events_provider_event_uq').on(table.provider, table.providerEventId),
   index('payment_webhook_events_unprocessed_idx').on(table.processedAt, table.createdAt),
 ])
+
+
+export const favoriteProfiles = pgTable('favorite_profiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  targetUserId: uuid('target_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('favorite_profiles_user_target_uq').on(table.userId, table.targetUserId),
+  index('favorite_profiles_target_idx').on(table.targetUserId),
+])
+
+export const favoriteVenues = pgTable('favorite_venues', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('favorite_venues_user_venue_uq').on(table.userId, table.venueId),
+  index('favorite_venues_venue_idx').on(table.venueId),
+])
