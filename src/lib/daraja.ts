@@ -92,7 +92,7 @@ export async function initiateStkPush(input: {
   description: string
 }) {
   const config = getDarajaConfig()
-  if (process.env.MPESA_ENV !== 'sandbox') {
+  if ((process.env.MPESA_ENV ?? 'sandbox') !== 'sandbox') {
     throw new Error('Live Daraja checkout is disabled until production approval is explicitly enabled')
   }
   const timestamp = darajaTimestamp()

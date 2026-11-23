@@ -1,10 +1,10 @@
 # Drinking Buddies
 
-An 18+ social discovery platform for finding drinking companions, making group plans, and discovering local venues and events. Kenya-first, designed for international expansion.
+An 18+ Kenya-first social discovery platform for finding drinking companions, making group plans, and discovering local venues and events.
 
 ## Product decisions
 
-- Launch in Kenya, then expand internationally.
+- Initial launch market: Kenya. Use KES and M-Pesa as the default payments experience; defer international-market features until after the Kenyan launch.
 - Brand combines social discovery and optional dating-style connections.
 - Everyone can discover everyone; users may set optional gender and connection-intent preferences.
 - Direct messaging requires a mutual match. Group meetup conversations are the exception.
@@ -78,6 +78,8 @@ The local PostGIS container uses development-only credentials. Change them befor
 
 The email worker reads the transactional outbox, uses row locking to avoid duplicate concurrent delivery, retries failures with backoff and marks exhausted jobs failed.
 
+Paid meetup checkout is sandbox-only. Configure `MPESA_ENV=sandbox`, Daraja consumer credentials, shortcode, passkey, an HTTPS `MPESA_CALLBACK_URL` pointing to `/api/webhooks/daraja`, and a random `MPESA_CALLBACK_TOKEN` of at least 32 characters. Then enable checkout from `/admin/mpesa`. Do not enable live payments or payouts until Safaricom production approval and end-to-end reconciliation testing are complete. Set `MEETUP_UPLOADS_DIR` to a persistent writable directory outside the release checkout if uploaded covers must survive deployments; otherwise the app uses `./storage/meetup-covers`.
+
 ## Database
 
 The `drizzle/` directory contains versioned PostgreSQL migrations. The initial migration enables PostGIS and creates identity, profile, matching, meetup, venue, subscription, payment, settings and email-outbox tables. The social graph migrations add likes, passes, conversations, messages, blocks and reports.
@@ -107,7 +109,9 @@ Still to implement:
 - WebSocket/SSE push delivery, read receipts and typing indicators; current chat refreshes by polling.
 - Meetup editing/cancellation, host transfer and invitation-only private meetups.
 - Venue self-registration, admin approval UI and admin-configurable package management.
-- M-Pesa Daraja integration and payment callback verification.
+- Kenya-first paid meetup checkout using M-Pesa Daraja STK Push in sandbox, server-verified callback and STK query, KES-only pricing, commission snapshots, organizer wallet credits, and admin-controlled checkout availability.
+- Optional meetup cover-photo upload with persistent server-side storage.
+- Admin M-Pesa configuration readiness and enable/disable controls; credentials remain in server environment variables.
 - Admin dashboard with account management, report moderation, email-verification policy controls and finance operations.
 
 Meetups now come from the database and are real user-created plans. The venue section still contains illustrative demo data. Do not treat venue entries as real businesses or real-time availability.

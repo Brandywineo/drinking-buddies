@@ -120,3 +120,26 @@ button{cursor:pointer}
 .pwa-help b{color:#f0f1e8}
 .pwa-help-action{margin-top:8px;padding:11px 16px;border:0;border-radius:7px;background:#d8f36a;color:#202515;font-size:11px;font-weight:800}
 @media(max-width:800px){.pwa-install-button{bottom:78px;right:13px}}
+
+
+/* Drinking Buddies themed messaging workspace */
+.chat-layout{border-color:#34372d;background:#191b16;color:#f4f4ec;box-shadow:0 18px 48px #0003}
+.chat-list{border-color:#303229;background:#151711}
+.chat-list-item{color:#e8eadd;border:1px solid transparent}
+.chat-list-item.selected,.chat-list-item:hover{border-color:#4a5437;background:#262a1f}
+.chat-list-item small,.chat-panel-head small{color:#a7ab99}
+.chat-list-empty,.chat-hint{color:#aeb2a2}
+.chat-panel{background:#191b16}
+.chat-panel-head{border-color:#303229;background:#1c1f18}
+.chat-history{background:radial-gradient(ellipse at top,#25291f 0%,#191b16 62%)}
+.chat-bubble{border:1px solid #393e30;background:#292d23;color:#f1f2e9}
+.chat-bubble.mine{border-color:#d8f36a;background:#d8f36a;color:#202515}
+.chat-compose{border-color:#303229;background:#171914}
+.chat-compose input{border-color:#424735;background:#11130f;color:#f4f4ec}
+.chat-compose input::placeholder{color:#858a79}
+.meetup-cover-preview{width:100%;max-height:220px;object-fit:cover;border:1px solid #424735;border-radius:10px}
+.live-meetup-image{position:relative;overflow:hidden}
+.live-meetup-image>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.live-meetup-image:has(>img)::after{position:absolute;inset:0;background:linear-gradient(180deg,#0008,transparent 45%,#0006);content:""}
+.live-meetup-image .meetup-area,.live-meetup-image .meetup-privacy{z-index:1}
+@media(max-width:700px){.chat-layout{background:#191b16}.chat-list{background:#151711}}
