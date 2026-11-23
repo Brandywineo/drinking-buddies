@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { and, eq, sql } from 'drizzle-orm'
 import { getDb } from '../db'
 import {
-  hostSubscriptions, hostWalletAccounts, hostWalletTransactions, meetupBookings, paymentWebhookEvents, payments,
+  hostSubscriptions, hostWalletAccounts, hostWalletTransactions, meetupBookings, meetupMembers, paymentWebhookEvents, payments,
 } from '../db/schema'
 import { normalizeMpesaPhone, queryStkPush } from '../lib/daraja'
 
@@ -89,6 +89,12 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
             if (!late) {
               await tx.update(meetupBookings).set({ status: 'confirmed', confirmedAt: now, updatedAt: now })
                 .where(and(eq(meetupBookings.id, booking.id), eq(meetupBookings.status, 'pending_payment')))
+              await tx.insert(meetupMembers).values({
+                meetupId: booking.meetupId, userId: booking.attendeeId, status: 'approved', joinedAt: now,
+              }).onConflictDoUpdate({
+                target: [meetupMembers.meetupId, meetupMembers.userId],
+                set: { status: 'approved', joinedAt: now, updatedAt: now },
+              })
               const [wallet] = await tx.insert(hostWalletAccounts).values({ userId: booking.hostId, currency: booking.currency })
                 .onConflictDoNothing().returning()
               const [account] = wallet ? [wallet] : await tx.select().from(hostWalletAccounts).where(and(
