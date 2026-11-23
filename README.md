@@ -59,7 +59,7 @@ The local PostGIS container uses development-only credentials. Change them befor
 
 - `GET /api/health` — process health.
 - `GET /api/ready` — database readiness.
-- `POST /api/auth/register` — email/password registration with mandatory 18+ acknowledgement; queues a verification email.
+- `POST /api/auth/register` — email/password registration with mandatory 18+ acknowledgement; email verification is disabled by default and configurable by admins.
 - `POST /api/auth/verify-email (JSON body: { token })` — consumes a one-time verification token.
 - `POST /api/auth/login` — verifies credentials and creates an HttpOnly session cookie.
 - `GET /api/auth/me` — returns the current signed-in user.
@@ -108,7 +108,7 @@ Still to implement:
 - Meetup editing/cancellation, host transfer and invitation-only private meetups.
 - Venue self-registration, admin approval UI and admin-configurable package management.
 - M-Pesa Daraja integration and payment callback verification.
-- Admin dashboard, moderation tooling and analytics.
+- Admin dashboard with account management, report moderation, email-verification policy controls and finance operations.
 
 Meetups now come from the database and are real user-created plans. The venue section still contains illustrative demo data. Do not treat venue entries as real businesses or real-time availability.
 
