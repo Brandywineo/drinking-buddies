@@ -31,6 +31,7 @@ export const Route = createFileRoute('/api/memories')({
         const visible = []
         for (const album of albums) {
           let allowed = album.creatorId === userId || album.visibility === 'public'
+          if (!allowed && album.visibility === 'private') continue
           if (!allowed && album.meetupId) {
             const [host] = await db.select({ id: meetups.id }).from(meetups).where(and(eq(meetups.id, album.meetupId), eq(meetups.hostId, userId))).limit(1)
             const [member] = await db.select({ id: meetupMembers.id }).from(meetupMembers).where(and(eq(meetupMembers.meetupId, album.meetupId), eq(meetupMembers.userId, userId), eq(meetupMembers.status, 'approved'))).limit(1)
