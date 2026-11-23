@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getDb } from '../db'
 import { profiles } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
+import { getProfileStats } from '../lib/profile-stats'
 import { jsonError, jsonOk } from '../lib/http'
 
 const profileSchema = z.object({
@@ -11,6 +12,8 @@ const profileSchema = z.object({
   bio: z.string().trim().max(500).nullable().optional(),
   gender: z.string().trim().max(32).nullable().optional(),
   discoverable: z.boolean().optional(),
+  displayPopularityScore: z.boolean().optional(),
+  displayReputationScore: z.boolean().optional(),
   locationVisibility: z.enum(['private', 'matches', 'public']).optional(),
   preferredGenders: z.array(z.string().trim().min(1).max(32)).max(10).optional(),
   connectionIntents: z.array(z.enum(['drinking_buddies', 'friendship', 'social_and_dating', 'group_outings'])).max(4).optional(),
@@ -25,7 +28,8 @@ export const Route = createFileRoute('/api/profile')({
         const userId = await getAuthenticatedUserId(request)
         if (!userId) return jsonError('Sign in to view your profile.', 401, 'UNAUTHENTICATED')
         const [profile] = await getDb().select().from(profiles).where(eq(profiles.userId, userId)).limit(1)
-        return jsonOk({ profile: profile ?? null })
+        const stats = profile ? await getProfileStats(userId) : null
+        return jsonOk({ profile: profile ?? null, stats })
       } catch (error) {
         console.error('Profile lookup failed', error)
         return jsonError('We could not load your profile.', 500, 'PROFILE_LOOKUP_FAILED')
@@ -42,7 +46,8 @@ export const Route = createFileRoute('/api/profile')({
         const [profile] = await getDb().insert(profiles).values({ userId, ...parsed.data })
           .onConflictDoUpdate({ target: profiles.userId, set: { ...parsed.data, updatedAt: new Date() } })
           .returning()
-        return jsonOk({ profile })
+        const stats = await getProfileStats(userId)
+        return jsonOk({ profile, stats })
       } catch (error) {
         console.error('Profile update failed', error)
         return jsonError('We could not save your profile.', 500, 'PROFILE_UPDATE_FAILED')

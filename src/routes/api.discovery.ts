@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, ilike, ne, notExists, or, isNull } from 'drizzle-orm'
+import { and, eq, ilike, ne, notExists, or, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { matches, profileLikes, profilePasses, profiles, userBlocks, users } from '../db/schema'
@@ -25,6 +25,10 @@ export const Route = createFileRoute('/api/discovery')({
         preferredGenders: profiles.preferredGenders, interests: profiles.interests,
         connectionIntents: profiles.connectionIntents, homeArea: profiles.homeArea,
         locationVisibility: profiles.locationVisibility,
+        displayPopularityScore: profiles.displayPopularityScore,
+        displayReputationScore: profiles.displayReputationScore,
+        popularityScore: sql<number>`(SELECT COUNT(*)::int * 5 FROM profile_likes WHERE to_user_id = ${users.id}) + (SELECT COUNT(*)::int * 3 FROM matches WHERE ended_at IS NULL AND (user_low_id = ${users.id} OR user_high_id = ${users.id}))`,
+        reputationScore: sql<number>`(SELECT COUNT(*)::int * 10 FROM meetup_bookings WHERE attendee_id = ${users.id} AND status = 'attended') + (SELECT COUNT(*)::int * 5 FROM meetups WHERE host_id = ${users.id})`,
       }).from(profiles).innerJoin(users, eq(users.id, profiles.userId))
         .where(and(
           eq(users.status, 'active'), eq(profiles.discoverable, true), ne(users.id, userId),
@@ -49,9 +53,11 @@ export const Route = createFileRoute('/api/discovery')({
         const candidateGenderOk = candidatePrefs.length === 0 || (viewer.gender ? candidatePrefs.includes(viewer.gender) : false)
         return viewerGenderOk && candidateGenderOk
       }).slice(0, 30)
-      return jsonOk({ profiles: compatible.map(({ preferredGenders: _privatePreferences, locationVisibility, ...profile }) => ({
+      return jsonOk({ profiles: compatible.map(({ preferredGenders: _privatePreferences, locationVisibility, displayPopularityScore, displayReputationScore, popularityScore, reputationScore, ...profile }) => ({
         ...profile,
         homeArea: locationVisibility === 'public' ? profile.homeArea : null,
+        ...(displayPopularityScore ? { popularityScore: Number(popularityScore ?? 0) } : {}),
+        ...(displayReputationScore ? { reputationScore: Number(reputationScore ?? 0) } : {}),
       })) })
     } catch (error) {
       console.error('Discovery failed', error)

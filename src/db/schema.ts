@@ -61,6 +61,8 @@ export const profiles = pgTable('profiles', {
   bio: varchar('bio', { length: 500 }),
   gender: varchar('gender', { length: 32 }),
   discoverable: boolean('discoverable').notNull().default(true),
+  displayPopularityScore: boolean('display_popularity_score').notNull().default(false),
+  displayReputationScore: boolean('display_reputation_score').notNull().default(false),
   locationVisibility: locationVisibility('location_visibility').notNull().default('private'),
   preferredGenders: jsonb('preferred_genders').$type<string[]>().notNull().default([]),
   connectionIntents: jsonb('connection_intents').$type<string[]>().notNull().default([]),
@@ -461,4 +463,25 @@ export const paymentWebhookEvents = pgTable('payment_webhook_events', {
 }, (table) => [
   uniqueIndex('payment_webhook_events_provider_event_uq').on(table.provider, table.providerEventId),
   index('payment_webhook_events_unprocessed_idx').on(table.processedAt, table.createdAt),
+])
+
+
+export const favoriteProfiles = pgTable('favorite_profiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  targetUserId: uuid('target_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('favorite_profiles_user_target_uq').on(table.userId, table.targetUserId),
+  index('favorite_profiles_target_idx').on(table.targetUserId),
+])
+
+export const favoriteVenues = pgTable('favorite_venues', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('favorite_venues_user_venue_uq').on(table.userId, table.venueId),
+  index('favorite_venues_venue_idx').on(table.venueId),
 ])

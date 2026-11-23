@@ -7,7 +7,7 @@ import { hostPayouts, paymentWebhookEvents } from '../db/schema'
 export const Route = createFileRoute('/api/webhooks/daraja/b2c-timeout')({
   server: { handlers: {
     POST: async ({ request }) => {
-      if (!isDarajaCallbackAuthorized(request)) return Response.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
+      if (!await isDarajaCallbackAuthorized(request)) return Response.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
       let payload: unknown
       try { payload = await request.json() } catch { return Response.json({ ResultCode: 0, ResultDesc: 'Accepted' }) }
       const body = payload as Record<string, unknown>
