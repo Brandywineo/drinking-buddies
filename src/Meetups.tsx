@@ -53,7 +53,7 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
   const [bookingMeetup, setBookingMeetup] = useState<Meetup | null>(null)
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [pendingBooking, setPendingBooking] = useState<{ meetupId: string; bookingId: string } | null>(null)
-  const [paymentState, setPaymentState] = useState<'pending' | 'confirmed' | 'failed'>('pending')
+  const [paymentState, setPaymentState] = useState<'pending' | 'confirmed' | 'failed' | 'review'>('pending')
   const [paymentMessage, setPaymentMessage] = useState('')
   const [checkingPayment, setCheckingPayment] = useState(false)
 
@@ -85,7 +85,10 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
         const result = await response.json()
         if (!response.ok) throw new Error(result.error?.message ?? 'Could not check payment status.')
         if (!active) return
-        if (result.data?.booking?.status === 'confirmed') {
+        if (result.data?.payment?.status === 'succeeded' && result.data?.payment?.metadata?.latePaymentReview === true) {
+          setPaymentState('review')
+          setPaymentMessage('Safaricom confirmed your payment after the ticket reservation expired. Do not pay again; our team needs to review the transaction.')
+        } else if (result.data?.booking?.status === 'confirmed') {
           setPaymentState('confirmed')
           setPaymentMessage('Payment confirmed. Your place is secured!')
           void loadMeetups()
@@ -280,7 +283,7 @@ export function Meetups({ currentUserId, signedIn, onSignIn, onOpenMessages }: P
       </form>
     </div></div>}
     {pendingBooking && <div className="modal-backdrop"><div className="modal">
-      <div className="modal-head"><div><span className="eyebrow">M-PESA CHECKOUT</span><h2>{paymentState === 'confirmed' ? 'You’re in!' : paymentState === 'failed' ? 'Payment not completed' : 'Waiting for payment'}</h2></div></div>
+      <div className="modal-head"><div><span className="eyebrow">M-PESA CHECKOUT</span><h2>{paymentState === 'confirmed' ? 'You’re in!' : paymentState === 'failed' ? 'Payment not completed' : paymentState === 'review' ? 'Payment needs review' : 'Waiting for payment'}</h2></div></div>
       <p className="form-note">{paymentMessage || 'Check your phone and enter your M-Pesa PIN to complete payment.'}</p>
       {paymentState === 'pending' && <p className="form-note">{checkingPayment ? 'Checking with the server…' : 'We are waiting for Safaricom’s confirmation.'}</p>}
       <button className="primary-button modal-submit" onClick={closePaymentStatus}>{paymentState === 'pending' ? 'Close — check later' : 'Done'}</button>
