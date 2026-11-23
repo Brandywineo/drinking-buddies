@@ -62,7 +62,7 @@ export async function canAccessMemoryAlbum(albumId: string, userId: string) {
     )).limit(1)
     return member ? album : null
   }
-  return album.visibility === 'members' ? album : null
+  return null
 }
 
 export async function canManageVenue(venueId: string, userId: string) {
