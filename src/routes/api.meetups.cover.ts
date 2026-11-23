@@ -24,7 +24,10 @@ export const Route = createFileRoute('/api/meetups/cover')({
         const type = TYPES[file.type as keyof typeof TYPES]
         if (!type) return jsonError('Use a JPG, PNG or WebP image.', 415, 'UNSUPPORTED_IMAGE')
         const bytes = Buffer.from(await file.arrayBuffer())
-        if (!type.signature.every((value, index) => bytes[index] === value)) return jsonError('The uploaded file is not a valid image of the selected type.', 415, 'INVALID_IMAGE')
+        if (!type.signature.every((value, index) => bytes[index] === value)
+          || (file.type === 'image/webp' && bytes.subarray(8, 12).toString() !== 'WEBP')) {
+          return jsonError('The uploaded file is not a valid image of the selected type.', 415, 'INVALID_IMAGE')
+        }
         const fileName = randomUUID() + '.' + type.extension
         const directory = process.env.MEETUP_UPLOADS_DIR?.trim() || join(process.cwd(), 'storage', 'meetup-covers')
         await mkdir(directory, { recursive: true, mode: 0o750 })
