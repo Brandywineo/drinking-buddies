@@ -214,6 +214,18 @@ function App() {
     finally { setProfilePhotoBusy(false) }
   }
 
+  const removeProfilePhoto = async () => {
+    setProfilePhotoBusy(true); setProfilePhotoError('')
+    try {
+      const response = await fetch('/api/profile/photo', { method: 'DELETE' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not remove your photo.')
+      setProfile((current) => current ? { ...current, avatarUrl: null } : current)
+      notify('Profile photo removed.')
+    } catch (cause) { setProfilePhotoError(cause instanceof Error ? cause.message : 'Could not remove your photo.') }
+    finally { setProfilePhotoBusy(false) }
+  }
+
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setProfileBusy(true)
@@ -366,7 +378,7 @@ function App() {
       {showProfileForm && authStatus === 'signed_in' && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && profile) setShowProfileForm(false) }}><div className="modal"><div className="modal-head"><div><span className="eyebrow">YOUR COMMUNITY PROFILE</span><h2>{profile ? 'Edit your profile' : 'Set up your profile'}</h2></div>{profile && <button className="icon-button" onClick={() => setShowProfileForm(false)}><X size={19} /></button>}</div>{profileError && <div className="auth-error">{profileError}</div>}<form onSubmit={saveProfile}>
         {(favoritePeopleDetails.length > 0 || favoriteVenues.length > 0) && <div className="profile-favourites-panel"><b>My favourites</b>{favoritePeopleDetails.length > 0 && <div><small>Favourite people and hosts</small><p>{favoritePeopleDetails.map((person) => person.displayName).join(' · ')}</p></div>}{favoriteVenues.length > 0 && <div><small>Favourite places</small><p>{favoriteVenues.map((venue) => venue.name).join(' · ')}</p></div>}</div>}
         {profileStats && <div className="profile-stats-panel"><b>Your community activity</b><div><span><strong>{profileStats.hostedMeetups}</strong><small>Hosted</small></span><span><strong>{profileStats.joinedMeetups}</strong><small>Joined</small></span><span><strong>{profileStats.attendedMeetups}</strong><small>Paid attended</small></span><span><strong>{profileStats.activeMatches}</strong><small>Matches</small></span><span><strong>{profileStats.favoriteHosts}</strong><small>Hosts saved</small></span><span><strong>{profileStats.favoritePlaces}</strong><small>Places saved</small></span></div><small>Popularity points: {profileStats.popularityScore} · Reputation points: {profileStats.reputationScore}. Reputation currently reflects hosted meetups and recorded paid attendance.</small></div>}
-        <div className="profile-photo-editor"><div className="profile-photo-preview">{profile?.avatarUrl ? <img src={profile.avatarUrl} alt="Your profile" /> : <Camera size={26} />}</div><div><b>Profile photo</b><p>JPG, PNG or WebP · max 10 MB</p><label className="photo-upload-button">{profilePhotoBusy ? 'Uploading…' : 'Upload photo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={profilePhotoBusy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadProfilePhoto(file); event.currentTarget.value = '' }} /></label>{profilePhotoError && <small role="alert">{profilePhotoError}</small>}</div></div>
+        <div className="profile-photo-editor"><div className="profile-photo-preview">{profile?.avatarUrl ? <img src={profile.avatarUrl} alt="Your profile" /> : <Camera size={26} />}</div><div><b>Profile photo</b><p>JPG, PNG or WebP · max 10 MB</p><label className="photo-upload-button">{profilePhotoBusy ? 'Saving…' : 'Upload photo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={profilePhotoBusy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadProfilePhoto(file); event.currentTarget.value = '' }} /></label>{profile?.avatarUrl && <button type="button" className="text-button" disabled={profilePhotoBusy} onClick={() => void removeProfilePhoto()}>Remove photo</button>}{profilePhotoError && <small role="alert">{profilePhotoError}</small>}</div></div>
         <label>Display name<input value={profileName} onChange={(e) => setProfileName(e.target.value)} minLength={2} maxLength={48} required placeholder="What should people call you?" /></label>
         <label>About you<textarea rows={3} value={profileBio} onChange={(e) => setProfileBio(e.target.value)} maxLength={500} placeholder="A little about the people and plans you enjoy…" /></label>
         <div className="form-row"><label>Gender<input value={profileGender} onChange={(e) => setProfileGender(e.target.value)} maxLength={32} placeholder="Optional" /></label><label>Home area<input value={profileArea} onChange={(e) => setProfileArea(e.target.value)} maxLength={120} placeholder="e.g. Westlands" /></label></div>
