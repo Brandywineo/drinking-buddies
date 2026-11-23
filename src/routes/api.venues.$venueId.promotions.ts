@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { venuePromotions } from '../db/schema'
@@ -30,7 +29,7 @@ export const Route = createFileRoute('/api/venues/$venueId/promotions')({
         const parsed = schema.safeParse(raw)
         if (!parsed.success) return jsonError('Promotion budget must be at least KES 100. Check the dates and placement.', 400, 'INVALID_PROMOTION')
         const [promotion] = await getDb().insert(venuePromotions).values({
-          venueId: id.data, requestedById: userId, ...parsed.data, currency: 'KES', status: 'pending',
+          venueId: id.data, requestedById: userId, ...parsed.data, startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), currency: 'KES', status: 'pending',
         }).returning({ id: venuePromotions.id, budgetMinor: venuePromotions.budgetMinor, currency: venuePromotions.currency, status: venuePromotions.status })
         return jsonOk({ promotion, message: 'Promotion request submitted for review. No payment has been taken.' }, 201)
       } catch (error) {
