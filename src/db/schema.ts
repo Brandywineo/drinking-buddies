@@ -212,12 +212,15 @@ export const venueSubscriptions = pgTable('venue_subscriptions', {
   index('venue_subscriptions_status_idx').on(table.status),
 ])
 
+export const consumerMemberships = pgTable('consumer_memberships', { id: uuid('id').defaultRandom().primaryKey(), userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), plan: varchar('plan', { length: 40 }).notNull(), status: subscriptionStatus('status').notNull().default('trialing'), lockedPriceMinor: integer('locked_price_minor').notNull(), currency: varchar('currency', { length: 3 }).notNull().default('KES'), billingInterval: varchar('billing_interval', { length: 16 }).notNull(), currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(), currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(), cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false), ...timestamps }, (table) => [uniqueIndex('consumer_memberships_user_uq').on(table.userId), index('consumer_memberships_status_period_idx').on(table.status, table.currentPeriodEnd)])
+
 export const payments = pgTable('payments', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
   subscriptionId: uuid('subscription_id').references(() => venueSubscriptions.id, { onDelete: 'set null' }),
   hostSubscriptionId: uuid('host_subscription_id').references(() => hostSubscriptions.id, { onDelete: 'set null' }),
+  consumerSubscriptionId: uuid('consumer_subscription_id').references(() => consumerMemberships.id, { onDelete: 'set null' }),
   bookingId: uuid('booking_id').references(() => meetupBookings.id, { onDelete: 'set null' }),
   provider: varchar('provider', { length: 32 }).notNull(),
   providerReference: varchar('provider_reference', { length: 180 }),

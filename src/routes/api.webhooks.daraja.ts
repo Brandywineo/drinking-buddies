@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { and, eq, sql } from 'drizzle-orm'
 import { getDb } from '../db'
 import {
-  hostSubscriptions, hostWalletAccounts, hostWalletTransactions, meetupBookings, meetupMembers, paymentWebhookEvents, payments,
+  consumerMemberships, hostSubscriptions, hostWalletAccounts, hostWalletTransactions, meetupBookings, meetupMembers, paymentWebhookEvents, payments, venueSubscriptions,
 } from '../db/schema'
 import { normalizeMpesaPhone, queryStkPush } from '../lib/daraja'
 
@@ -44,7 +44,7 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
         const [payment] = await db.select().from(payments).where(and(
           eq(payments.provider, 'daraja'), eq(payments.providerReference, checkoutId),
         )).limit(1)
-        if (!payment || payment.status !== 'pending' || (!payment.bookingId && !payment.hostSubscriptionId)) {
+        if (!payment || payment.status !== 'pending' || (!payment.bookingId && !payment.hostSubscriptionId && !payment.consumerSubscriptionId && !payment.subscriptionId)) {
           await db.update(paymentWebhookEvents).set({ processedAt: new Date(), processingError: payment ? 'Payment is not pending or has no supported owner' : 'Unknown checkout request' }).where(eq(paymentWebhookEvents.id, event.id))
           return Response.json({ ResultCode: 0, ResultDesc: 'Accepted for reconciliation' })
         }
@@ -111,6 +111,18 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
                 pendingMinor: sql`${hostWalletAccounts.pendingMinor} + ${booking.hostNetMinor}`, updatedAt: now,
               }).where(eq(hostWalletAccounts.id, account.id))
             }
+          } else if (lockedPayment.consumerSubscriptionId) {
+            const [sub] = await tx.select().from(consumerMemberships).where(eq(consumerMemberships.id, lockedPayment.consumerSubscriptionId)).limit(1)
+            if (!sub) throw new Error('Consumer membership missing')
+            const interval = lockedPayment.metadata.billingInterval === 'year' ? 'year' : 'month'
+            const end = new Date(now); if (interval === 'year') end.setFullYear(end.getFullYear()+1); else end.setMonth(end.getMonth()+1)
+            await tx.update(consumerMemberships).set({plan:interval === 'year' ? 'plus_annual' : 'plus_monthly',status:'active',lockedPriceMinor:lockedPayment.amountMinor,currency:'KES',billingInterval:interval,currentPeriodStart:now,currentPeriodEnd:end,cancelAtPeriodEnd:false,updatedAt:now}).where(eq(consumerMemberships.id,sub.id))
+          } else if (lockedPayment.subscriptionId) {
+            const [sub] = await tx.select().from(venueSubscriptions).where(eq(venueSubscriptions.id, lockedPayment.subscriptionId)).limit(1)
+            if (!sub) throw new Error('Venue membership missing')
+            const interval = lockedPayment.metadata.billingInterval === 'year' ? 'year' : 'month'
+            const end = new Date(now); if (interval === 'year') end.setFullYear(end.getFullYear()+1); else end.setMonth(end.getMonth()+1)
+            await tx.update(venueSubscriptions).set({status:'active',lockedPriceMinor:lockedPayment.amountMinor,currency:lockedPayment.currency,billingInterval:interval,currentPeriodStart:now,currentPeriodEnd:end,cancelAtPeriodEnd:false,updatedAt:now}).where(eq(venueSubscriptions.id,sub.id))
           } else if (lockedPayment.hostSubscriptionId) {
             const [subscription] = await tx.select().from(hostSubscriptions).where(eq(hostSubscriptions.id, lockedPayment.hostSubscriptionId)).limit(1)
             if (!subscription) throw new Error('Host membership record no longer exists')

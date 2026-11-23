@@ -12,6 +12,8 @@ const bodySchema = z.object({
   hostTrialDays: z.number().int().min(1).max(90),
   hostMonthlyPriceMinor: z.number().int().min(0).max(100000000),
   hostAnnualPriceMinor: z.number().int().min(0).max(100000000),
+  consumerMonthlyPriceMinor: z.number().int().min(0).max(100000000),
+  consumerAnnualPriceMinor: z.number().int().min(0).max(100000000),
 }).strict()
 
 export const Route = createFileRoute('/api/admin/finance/settings')({
@@ -22,6 +24,7 @@ export const Route = createFileRoute('/api/admin/finance/settings')({
       const values = Object.fromEntries(rows.map((row) => [row.key, row.value]))
       const fees = values.marketplace_fees && typeof values.marketplace_fees === 'object' ? values.marketplace_fees as Record<string, unknown> : {}
       const payouts = values.payout_settings && typeof values.payout_settings === 'object' ? values.payout_settings as Record<string, unknown> : {}
+      const consumer = values.consumer_membership && typeof values.consumer_membership === 'object' ? values.consumer_membership as Record<string, unknown> : {}
       const membership = values.host_membership && typeof values.host_membership === 'object' ? values.host_membership as Record<string, unknown> : {}
       return jsonOk({
         commissionBps: Number(fees.commissionBps ?? 1000),
@@ -30,6 +33,8 @@ export const Route = createFileRoute('/api/admin/finance/settings')({
         hostTrialDays: Number(membership.trialDays ?? 14),
         hostMonthlyPriceMinor: Number(membership.monthlyPriceMinor ?? 0),
         hostAnnualPriceMinor: Number(membership.annualPriceMinor ?? 0),
+        consumerMonthlyPriceMinor: Number(consumer.monthlyPriceMinor ?? 0),
+        consumerAnnualPriceMinor: Number(consumer.annualPriceMinor ?? 0),
       })
     },
     PUT: async ({ request }) => {
@@ -44,6 +49,7 @@ export const Route = createFileRoute('/api/admin/finance/settings')({
         ['marketplace_fees', { commissionBps: parsed.data.commissionBps }],
         ['payout_settings', { minimumAmountMinor: parsed.data.minimumPayoutMinor, releaseHours: parsed.data.payoutReleaseHours, adminApprovalRequired: true }],
         ['host_membership', { trialDays: parsed.data.hostTrialDays, monthlyPriceMinor: parsed.data.hostMonthlyPriceMinor, annualPriceMinor: parsed.data.hostAnnualPriceMinor, currency: 'KES' }],
+        ['consumer_membership', { monthlyPriceMinor: parsed.data.consumerMonthlyPriceMinor, annualPriceMinor: parsed.data.consumerAnnualPriceMinor, currency: 'KES' }],
       ] as const
       await db.transaction(async (tx) => {
         for (const [key, value] of values) {
