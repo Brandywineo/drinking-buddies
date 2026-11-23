@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, desc, eq, or } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryAlbums, memoryMedia, memoryTags, meetupMembers, meetups, profiles, squadMembers } from '../db/schema'
@@ -27,15 +27,7 @@ export const Route = createFileRoute('/api/memories')({
           visibility: memoryAlbums.visibility, createdAt: memoryAlbums.createdAt,
           creatorName: profiles.displayName,
         }).from(memoryAlbums).leftJoin(profiles, eq(profiles.userId, memoryAlbums.creatorId))
-          .where(or(
-            eq(memoryAlbums.creatorId, userId),
-            eq(memoryAlbums.visibility, 'public'),
-            and(memoryAlbums.visibility === 'members' ? eq(memoryAlbums.visibility, 'members') : eq(memoryAlbums.visibility, 'private'),
-              or(
-                and(memoryAlbums.meetupId !== null, eq(memoryAlbums.meetupId, memoryAlbums.meetupId)),
-                and(memoryAlbums.squadId !== null, eq(memoryAlbums.squadId, memoryAlbums.squadId)),
-              )),
-          )).orderBy(desc(memoryAlbums.createdAt)).limit(100)
+          .orderBy(desc(memoryAlbums.createdAt)).limit(100)
         const visible = []
         for (const album of albums) {
           let allowed = album.creatorId === userId || album.visibility === 'public'
