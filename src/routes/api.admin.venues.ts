@@ -34,7 +34,7 @@ export const Route = createFileRoute('/api/admin/venues')({
         ])
         return jsonOk({
           venues: venueRows,
-          photos: photoRows.map(photo => ({ ...photo, url: photo.status === 'approved' && photoRows.length >= 0 ? '/api/venue-photos/' + photo.id : null })),
+          photos: photoRows.map(photo => ({ ...photo, url: '/api/admin/venue-photos/' + photo.id })),
         })
       } catch (error) {
         console.error('Admin venue queue failed', error)
