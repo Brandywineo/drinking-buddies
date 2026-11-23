@@ -192,3 +192,65 @@ button{cursor:pointer}
 .profile-favourites-panel>div{display:grid;gap:4px}
 .profile-favourites-panel small{color:#a4a99a;font-size:10px}
 .profile-favourites-panel p{margin:0;color:#e2e5d8;font-size:11px;line-height:1.6}
+
+
+/* M3: distinct discovery experiences */
+.discovery-modes{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
+.discovery-modes button,.goout-tabs button{padding:9px 13px;border:1px solid #37392f;border-radius:30px;background:#1a1c17;color:#aeb1a3;font-size:10px;font-weight:700}
+.discovery-modes button.active,.goout-tabs button.active{border-color:#d8f36a;background:#29301e;color:#d8f36a}
+
+/* M4: spontaneous plans, squads and social calendar */
+.goout-hub{display:grid;gap:20px}
+.goout-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border:1px solid #555e3e;border-radius:8px;background:#20251a;color:#dce4c3;font-size:11px}
+.goout-alert button{border:0;background:none;color:#d8f36a}
+.goout-tabs{display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid #303229;padding-bottom:14px}
+.goout-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:23px;border:1px solid #3b402d;border-radius:12px;background:linear-gradient(125deg,#252b1d,#1a1c17)}
+.goout-hero h2{margin:8px 0;font:800 25px Manrope;letter-spacing:-.8px}
+.goout-hero p{max-width:480px;margin:0;color:#aeb2a1;font-size:11px;line-height:1.6}
+.goout-form{display:grid;gap:13px;padding:18px;border:1px solid #3b402d;border-radius:11px;background:#191b16}
+.goout-form label{display:grid;gap:6px;color:#aeb1a3;font-size:10px}
+.goout-form input,.goout-form textarea,.goout-form select,.squad-compose input,.squad-invite input{width:100%;min-width:0;padding:10px 11px;border:1px solid #383a30;border-radius:7px;outline:none;background:#11130f;color:#f1f1e8;font-size:11px}
+.goout-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.goout-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.goout-card,.squad-card{padding:17px;border:1px solid #303229;border-radius:11px;background:#191b16}
+.goout-card-top,.goout-card-footer,.squad-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.goout-visibility{color:#a1a594;font-size:9px;text-transform:capitalize}
+.goout-card h3{margin:13px 0 7px;font:800 18px Manrope}
+.goout-card>p,.squad-card>p{min-height:34px;margin:0;color:#a5a99a;font-size:10px;line-height:1.6}
+.goout-meta{display:grid;gap:8px;margin:15px 0;color:#c2c6b6;font-size:10px}
+.goout-meta span{display:flex;align-items:center;gap:7px}
+.goout-card-footer{padding-top:12px;border-top:1px solid #303229}
+.goout-card-footer small{color:#a1a594;font-size:9px}
+.goout-card-footer .interest-button{width:auto;padding:0 13px}
+.squad-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.9fr);gap:15px;align-items:start}
+.squad-grid{display:grid;gap:12px}
+.squad-card.selected{border-color:#687849}
+.squad-card-main{display:flex;align-items:center;gap:11px;width:100%;padding:0;border:0;background:none;color:#e8eadf;text-align:left}
+.squad-card-main>span:nth-child(2){display:grid;gap:4px}
+.squad-card-main b{font:700 13px Manrope}
+.squad-card-main small{color:#a3a797;font-size:9px}
+.squad-icon,.calendar-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#2b3020;color:#d8f36a}
+.squad-card>p{margin:12px 0}
+.squad-card-footer{padding-top:10px;border-top:1px solid #303229;color:#a3a797;font-size:9px}
+.squad-card-footer button{border:0;background:none;color:#d8f36a;font-size:10px;font-weight:700}
+.squad-discussion{display:grid;gap:12px;padding:14px;border:1px solid #3b402d;border-radius:11px;background:#171914}
+.squad-discussion-head{display:flex;align-items:center;justify-content:space-between}
+.squad-discussion-head h3{margin:5px 0 0;font:800 17px Manrope}
+.squad-messages{display:flex;max-height:330px;min-height:150px;flex-direction:column;gap:9px;overflow:auto;padding:5px}
+.squad-message{max-width:88%;padding:10px 12px;border:1px solid #34382a;border-radius:10px;background:#22251d}
+.squad-message.mine{align-self:flex-end;border-color:#465132;background:#29301e}
+.squad-message b{font-size:9px;color:#d8f36a}
+.squad-message p{margin:5px 0;color:#e6e8dd;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.squad-message small{display:block;color:#9da28f;font-size:8px;text-align:right}
+.squad-compose{display:flex;gap:8px}
+.squad-compose button{flex:0 0 auto}
+.squad-invite{display:flex;gap:8px;padding-top:10px;border-top:1px solid #303229}
+.squad-invite input{flex:1}
+.calendar-list{display:grid;gap:9px}
+.calendar-item{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #303229;border-radius:9px;background:#191b16}
+.calendar-item>div{display:grid;flex:1;min-width:0;gap:4px}
+.calendar-item b{font-size:11px}
+.calendar-item small{color:#a2a696;font-size:9px}
+.calendar-item time{color:#d8f36a;font-size:9px;text-align:right}
+@media(max-width:900px){.squad-layout{grid-template-columns:1fr}.goout-card-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.goout-hero{align-items:flex-start;flex-direction:column}.goout-form-grid{grid-template-columns:1fr}.squad-invite{flex-direction:column}.calendar-item{align-items:flex-start;flex-wrap:wrap}.calendar-item time{width:100%;text-align:left}.mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr))}.mobile-nav button span{font-size:8px}}
