@@ -125,6 +125,7 @@ export const meetups = pgTable('meetups', {
   hostId: uuid('host_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 100 }).notNull(),
   description: varchar('description', { length: 1200 }),
+  coverImageUrl: varchar('cover_image_url', { length: 500 }),
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
   endsAt: timestamp('ends_at', { withTimezone: true }),
   area: varchar('area', { length: 160 }).notNull(),
