@@ -30,6 +30,7 @@ const credentialsSchema = z.object({
 
 const bodySchema = z.object({
   enabled: z.boolean().optional(),
+  environment: z.enum(['sandbox', 'production']).optional(),
   credentials: credentialsSchema.optional(),
 }).strict().refine((value) => value.enabled !== undefined || value.credentials !== undefined)
 
@@ -42,7 +43,7 @@ function statusFor(secrets: MpesaSecrets) {
     callbackUrl: secrets.callbackUrl.startsWith('https://'),
     callbackToken: secrets.callbackToken.length >= 32,
   }
-  return { checks, ready: Object.values(checks).every(Boolean) && (process.env.MPESA_ENV ?? 'sandbox') === 'sandbox' }
+  return { checks, ready: Object.values(checks).every(Boolean) }
 }
 
 export const Route = createFileRoute('/api/admin/settings/mpesa')({
@@ -56,7 +57,7 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
       const status = statusFor(secrets)
       return jsonOk({
         enabled: value.enabled === true,
-        environment: process.env.MPESA_ENV ?? 'sandbox',
+        environment: value.environment === 'production' ? 'production' : 'sandbox',
         encryptionReady: isMpesaEncryptionReady(),
         configured: Object.fromEntries(mpesaSecretFields().map((field) => [field, Boolean(secrets[field])])),
         ...status,
@@ -75,7 +76,7 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
         if (!response.ok || typeof payload.access_token !== 'string') {
           return jsonError(typeof payload.errorMessage === 'string' ? payload.errorMessage : 'Daraja rejected these credentials.', 502, 'MPESA_CONNECTION_FAILED')
         }
-        return jsonOk({ connected: true, environment: process.env.MPESA_ENV ?? 'sandbox' })
+        return jsonOk({ connected: true, environment: config.environment })
       } catch (error) {
         console.error('Daraja connection test failed', error)
         return jsonError(error instanceof Error ? error.message : 'Could not connect to Daraja.', 502, 'MPESA_CONNECTION_FAILED')
@@ -113,9 +114,10 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
         return jsonError('Daraja callback URLs must use HTTPS.', 400, 'HTTPS_REQUIRED')
       }
       const enabled = parsed.data.enabled ?? currentValue.enabled === true
+      const environment = parsed.data.environment ?? (currentValue.environment === 'production' ? 'production' : 'sandbox')
       const status = statusFor(secrets)
-      if (enabled && !status.ready) {
-        return jsonError('M-Pesa checkout cannot be enabled until the sandbox credentials and secure HTTPS callback settings are complete.', 409, 'MPESA_NOT_READY')
+      if (enabled && (!status.ready || !isMpesaEncryptionReady())) {
+        return jsonError('M-PESA checkout cannot be enabled until the Daraja credentials and secure HTTPS callback settings are complete.', 409, 'MPESA_NOT_READY')
       }
 
       if (parsed.data.credentials) {
@@ -123,10 +125,10 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
         await db.insert(platformSettings).values({ key: 'mpesa_credentials', value: { encrypted, version: 1 }, updatedBy: adminId })
           .onConflictDoUpdate({ target: platformSettings.key, set: { value: { encrypted, version: 1 }, updatedBy: adminId, updatedAt: new Date() } })
       }
-      const value = { enabled }
+      const value = { enabled, environment }
       await db.insert(platformSettings).values({ key: 'mpesa_settings', value, updatedBy: adminId })
         .onConflictDoUpdate({ target: platformSettings.key, set: { value, updatedBy: adminId, updatedAt: new Date() } })
-      return jsonOk({ saved: true, enabled, ready: status.ready })
+      return jsonOk({ saved: true, enabled, environment, ready: status.ready })
     },
   } },
 })

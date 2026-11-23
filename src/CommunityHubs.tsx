@@ -4,7 +4,7 @@ import { Camera, MapPin, Plus, Upload, X } from 'lucide-react'
 type Venue = { id: string; name: string; description: string | null; category: string; address: string; area: string; city: string; websiteUrl: string | null; coverPhotoUrl?: string | null }
 type OwnedVenue = { id:string; name:string; approvalStatus:string; isPublished:boolean; area:string; city:string; createdAt:string }
 type Album = { id: string; title: string; description: string | null; visibility: string; mediaCount: number; creatorName: string | null }
-type Media = { id: string; mediaKind: string; caption: string | null; url: string; uploaderName: string | null }
+type Media = { id: string; mediaKind: string; caption: string | null; url: string; uploaderName: string | null; moderationStatus?: string }
 
 function Notice({ value }: { value: string }) { return value ? <p className="hub-notice" role="status">{value}</p> : null }
 
@@ -78,17 +78,101 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [active,setActive] = useState<Album|null>(null)
   const [media,setMedia] = useState<Media[]>([])
   const [notice,setNotice] = useState('')
-  const [form,setForm] = useState({title:'',description:'',visibility:'private',meetupId:'',squadId:''})
+  const [form,setForm] = useState({title:'',description:'',visibility:'members',meetupId:'',squadId:''})
   const [files,setFiles] = useState<File[]>([])
   const [caption,setCaption] = useState('')
-  async function load() { const r=await fetch('/api/memories'); const j=await r.json(); if(r.ok){setAlbums(j.data?.albums??[]);setPendingTags(j.data?.pendingTags??[])} else setNotice(j.error?.message??'Sign in to view memories.') }
+  const [uploading,setUploading] = useState(false)
+  const [loadingAlbum,setLoadingAlbum] = useState(false)
+
+  async function load() {
+    const r=await fetch('/api/memories',{credentials:'include'})
+    const j=await r.json()
+    if(r.ok){setAlbums(j.data?.albums??[]);setPendingTags(j.data?.pendingTags??[])}
+    else setNotice(j.error?.message??'Sign in to view memories.')
+  }
   useEffect(()=>{if(signedIn)void load()},[signedIn])
-  async function createAlbum(event:FormEvent){event.preventDefault();const r=await fetch('/api/memories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,meetupId:form.meetupId||null,squadId:form.squadId||null})});const j=await r.json();setNotice(r.ok?'Album created.':j.error?.message??'Could not create album.');if(r.ok){setForm({title:'',description:'',visibility:'private',meetupId:'',squadId:''});void load()}}
-  async function decideTag(id:string,decision:'accept'|'decline'){const r=await fetch('/api/memories/tags/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision})});const j=await r.json();setNotice(r.ok?'Tag request '+decision+'ed.':j.error?.message??'Could not update tag.');if(r.ok)void load()}
-  async function openAlbum(album:Album){setActive(album);const r=await fetch('/api/memories/'+album.id);const j=await r.json();if(r.ok)setMedia(j.data?.media??[]);else setNotice(j.error?.message??'Could not load album.')}
-  async function upload(event:FormEvent){const formElement=event.currentTarget;event.preventDefault();if(!active||!files.length)return;let uploaded=0;const failedFiles:File[]=[];for(const file of files.slice(0,20)){const body=new FormData();body.set('file',file);body.set('caption',caption);const r=await fetch('/api/memories/'+active.id+'/media',{method:'POST',body});if(r.ok)uploaded++;else failedFiles.push(file);}setNotice(failedFiles.length?uploaded+' memory item(s) uploaded; '+failedFiles.length+' failed. Select Upload again to retry the remaining files.':uploaded+' memory item(s) uploaded successfully.');if(uploaded){setFiles(failedFiles);setCaption('');formElement.reset();void openAlbum(active)}}
-  return <section className="community-hub"><div className="section-heading"><div><div className="eyebrow">PARTY MEMORIES</div><h2>Keep the good nights</h2><p>Shared albums for meetups, squads and your favourite moments.</p></div><Camera size={24}/></div>
-    <Notice value={notice}/>{!signedIn?<div className="empty-state"><h3>Sign in to create and share memories.</h3></div>:<><form className="hub-form" onSubmit={createAlbum}><h3>Create an album</h3><div className="form-row"><label>Album title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label><label>Who can see it?<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option value="members">Members</option><option value="private">Only me</option><option value="public">Public</option></select></label></div><label>Description<textarea maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><div className="form-row"><label>Meetup ID (optional)<input value={form.meetupId} onChange={e=>setForm({...form,meetupId:e.target.value,squadId:''})} placeholder="Link an approved meetup"/></label><label>Squad ID (optional)<input value={form.squadId} onChange={e=>setForm({...form,squadId:e.target.value,meetupId:''})} placeholder="Link a squad"/></label></div><button className="primary-button">Create album</button></form>{pendingTags.length>0&&<div className="hub-form"><h3>Tag requests waiting for you</h3>{pendingTags.map(tag=><div className="hub-deal" key={tag.id}><p>Someone requested to tag you in a memory.</p><button className="filter-button" onClick={()=>void decideTag(tag.id,'accept')}>Accept</button> <button className="filter-button" onClick={()=>void decideTag(tag.id,'decline')}>Decline</button></div>)}</div>}<div className="memory-album-grid">{albums.map(a=><button className="memory-album-card" key={a.id} onClick={()=>void openAlbum(a)}><Camera size={22}/><b>{a.title}</b><small>{a.mediaCount} memories · {a.visibility}</small></button>)}</div>{!albums.length&&<div className="empty-state"><p>Your albums will appear here.</p></div>}</>}
-    {active&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setActive(null)}}><div className="modal"><div className="modal-head"><div><span className="eyebrow">PARTY MEMORIES</span><h2>{active.title}</h2></div><button className="icon-button" onClick={()=>setActive(null)}><X size={18}/></button></div><form className="hub-form" onSubmit={upload}><label>Add photos or MP4 videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={e=>setFiles(Array.from(e.target.files??[]).slice(0,20))} required/><small>{files.length} file(s) selected · up to 20 per upload</small></label><label>Caption<input value={caption} maxLength={500} onChange={e=>setCaption(e.target.value)}/></label><button className="primary-button" disabled={!files.length}><Upload size={16}/> Upload {files.length || ""} {files.length === 1 ? "memory" : "memories"}</button></form><div className="memory-gallery-grid">{media.map((m,index)=><div key={m.id} className={"memory-media-card "+(index===0?"memory-media-featured":"")}>{m.mediaKind==='video'?<video src={m.url} controls/>:<img src={m.url} alt={m.caption??'Shared party memory'}/>}<small>{m.caption}</small></div>)}</div></div></div>}
+
+  async function createAlbum(event:FormEvent) {
+    event.preventDefault()
+    const r=await fetch('/api/memories',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,meetupId:form.meetupId||null,squadId:form.squadId||null})})
+    const j=await r.json()
+    setNotice(r.ok?'Album created. Add your first photos or videos below.':j.error?.message??'Could not create album.')
+    if(r.ok){
+      setForm({title:'',description:'',visibility:'members',meetupId:'',squadId:''})
+      await load()
+      if(j.data?.album) await openAlbum({...j.data.album,mediaCount:0,creatorName:null})
+    }
+  }
+  async function decideTag(id:string,decision:'accept'|'decline') {
+    const r=await fetch('/api/memories/tags/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision})})
+    const j=await r.json()
+    setNotice(r.ok?'Tag request '+decision+'ed.':j.error?.message??'Could not update tag.')
+    if(r.ok)void load()
+  }
+  async function openAlbum(album:Album) {
+    setActive(album);setLoadingAlbum(true);setMedia([])
+    const r=await fetch('/api/memories/'+album.id,{credentials:'include'})
+    const j=await r.json()
+    if(r.ok)setMedia(j.data?.media??[])
+    else setNotice(j.error?.message??'Could not load album.')
+    setLoadingAlbum(false)
+  }
+  async function upload(event:FormEvent) {
+    event.preventDefault()
+    if(!active||!files.length||uploading)return
+    setUploading(true)
+    let uploaded=0
+    const failedFiles:File[]=[]
+    for(const file of files.slice(0,20)){
+      const body=new FormData();body.set('file',file);body.set('caption',caption)
+      const r=await fetch('/api/memories/'+active.id+'/media',{method:'POST',credentials:'include',body})
+      if(r.ok)uploaded++
+      else {failedFiles.push(file);const j=await r.json().catch(()=>null);setNotice(j?.error?.message??'One or more uploads failed.')}
+    }
+    setFiles(failedFiles)
+    if(uploaded&&failedFiles.length===0)setCaption('')
+    setNotice(failedFiles.length?uploaded+' uploaded · '+failedFiles.length+' need retry.':uploaded+' memories uploaded. They are visible here while moderation is pending.')
+    await openAlbum(active)
+    await load()
+    setUploading(false)
+  }
+  async function deleteMedia(id:string) {
+    const r=await fetch('/api/memories/media/'+id,{method:'DELETE',credentials:'include'})
+    const j=await r.json()
+    if(r.ok){setMedia(current=>current.filter(item=>item.id!==id));setNotice('Memory removed.')}
+    else setNotice(j.error?.message??'Could not remove memory.')
+  }
+
+  return <section className="community-hub">
+    <div className="section-heading"><div><div className="eyebrow">PARTY MEMORIES</div><h2>Keep the good nights</h2><p>Build a visual diary of meetups, squads and nights worth remembering.</p></div><Camera size={24}/></div>
+    <Notice value={notice}/>
+    {!signedIn?<div className="empty-state"><h3>Sign in to create and share memories.</h3></div>:<>
+      <form className="hub-form" onSubmit={createAlbum}>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3>Create a memory album</h3><span className="intent-pill">Photos + MP4 video</span></div>
+        <div className="form-row"><label>Album title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="e.g. Friday at Westlands"/></label><label>Who can see it?<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option value="members">Members</option><option value="private">Only me</option><option value="public">Public</option></select></label></div>
+        <label>Description<textarea maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What made this night memorable?"/></label>
+        <div className="form-row"><label>Meetup ID (optional)<input value={form.meetupId} onChange={e=>setForm({...form,meetupId:e.target.value,squadId:''})} placeholder="Link an approved meetup"/></label><label>Squad ID (optional)<input value={form.squadId} onChange={e=>setForm({...form,squadId:e.target.value,meetupId:''})} placeholder="Link a squad"/></label></div>
+        <button className="primary-button"><Plus size={16}/> Create album</button>
+      </form>
+      {pendingTags.length>0&&<div className="hub-form"><h3>Tag requests waiting for you</h3>{pendingTags.map(tag=><div className="hub-deal" key={tag.id}><p>Someone requested to tag you in a memory.</p><button className="filter-button" onClick={()=>void decideTag(tag.id,'accept')}>Accept</button> <button className="filter-button" onClick={()=>void decideTag(tag.id,'decline')}>Decline</button></div>)}</div>}
+      <div className="section-heading"><div><div className="eyebrow">YOUR COLLECTION</div><h3>Your albums</h3><p>Open an album to add, view or remove memories.</p></div></div>
+      <div className="memory-album-grid">{albums.map(a=><button className="memory-album-card" key={a.id} onClick={()=>void openAlbum(a)}><Camera size={22}/><b>{a.title}</b><small>{a.mediaCount} approved memories · {a.visibility}</small><span className="text-xs font-semibold text-lime-300">Open album · Add memories <Upload size={13}/></span></button>)}</div>
+      {!albums.length&&<div className="empty-state"><Camera size={26}/><b>No albums yet</b><p>Create your first album, then add photos and videos from your camera roll.</p></div>}
+    </>}
+    {active&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setActive(null);setFiles([])}}}>
+      <div className="modal">
+        <div className="modal-head"><div><span className="eyebrow">PARTY MEMORIES</span><h2>{active.title}</h2><small>{media.length} visible memories</small></div><button className="icon-button" onClick={()=>{setActive(null);setFiles([])}}><X size={18}/></button></div>
+        <form className="hub-form" onSubmit={upload}>
+          <h3><Upload size={17}/> Add to this album</h3>
+          <label className="memory-file-picker">Choose photos or videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={e=>setFiles(Array.from(e.target.files??[]).slice(0,20))}/><small>Up to 20 files per batch · JPG, PNG, WebP or MP4</small></label>
+          {files.length>0&&<div className="grid gap-2 rounded-xl border border-white/10 p-3"><b>{files.length} selected</b>{files.map((file,index)=><div key={file.name+file.size+index} className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate">{file.type.startsWith('video/')?'▶':'▧'} {file.name}</span><button type="button" className="text-button" onClick={()=>setFiles(current=>current.filter((_,i)=>i!==index))}>Remove</button></div>)}</div>}
+          <label>Caption for this batch<input value={caption} maxLength={500} onChange={e=>setCaption(e.target.value)} placeholder="Add a note about these moments"/></label>
+          <button className="primary-button" disabled={!files.length||uploading}><Upload size={16}/>{uploading?'Uploading…':` Upload ${files.length||''} ${files.length===1?'memory':'memories'}`}</button>
+        </form>
+        <div className="section-heading"><div><div className="eyebrow">ALBUM GALLERY</div><h3>Shared moments</h3><p>New uploads remain visible to you while they await moderation.</p></div></div>
+        {loadingAlbum?<div className="empty-state">Loading memories…</div>:<div className="memory-gallery-grid">{media.map((item,index)=><div key={item.id} className={"memory-media-card "+(index===0?"memory-media-featured":"")}>{item.mediaKind==='video'?<video src={item.url} controls preload="metadata"/>:<img src={item.url} alt={item.caption??'Shared party memory'}/>}<small>{item.caption||'A moment worth keeping'}</small>{item.moderationStatus&&item.moderationStatus!=='approved'&&<small className="text-amber-200">Awaiting moderation</small>}<button type="button" className="text-button" onClick={()=>void deleteMedia(item.id)}>Remove</button></div>)}</div>}
+        {!loadingAlbum&&!media.length&&<div className="empty-state"><Camera size={24}/><b>No memories in this album yet</b><p>Choose photos or videos above to start your gallery.</p></div>}
+      </div>
+    </div>}
   </section>
 }

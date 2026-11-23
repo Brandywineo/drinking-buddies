@@ -1,8 +1,13 @@
 import { withDarajaCallbackToken } from './daraja-callback-auth'
+import { eq } from 'drizzle-orm'
+import { getDb } from '../db'
+import { platformSettings } from '../db/schema'
 import { getMpesaSecrets } from './mpesa-secrets'
 
 type DarajaConfig = {
   baseUrl: string
+  environment: 'sandbox' | 'production'
+  enabled: boolean
   consumerKey: string
   consumerSecret: string
   shortcode: string
@@ -29,12 +34,14 @@ function required(value: string, label: string) {
 }
 
 export async function getDarajaConfig(): Promise<DarajaConfig> {
-  const environment = process.env.MPESA_ENV ?? 'sandbox'
-  if (environment !== 'sandbox' && environment !== 'production') {
-    throw new Error('MPESA_ENV must be sandbox or production')
-  }
+  const [setting] = await getDb().select({ value: platformSettings.value }).from(platformSettings).where(eq(platformSettings.key, 'mpesa_settings')).limit(1)
+  const value = setting?.value && typeof setting.value === 'object' ? setting.value as Record<string, unknown> : {}
+  const configuredEnvironment = value.environment === 'production' ? 'production' : value.environment === 'sandbox' ? 'sandbox' : process.env.MPESA_ENV === 'production' ? 'production' : 'sandbox'
+  const environment = configuredEnvironment
   const secrets = await getMpesaSecrets()
   return {
+    environment,
+    enabled: value.enabled === true,
     baseUrl: environment === 'production' ? 'https://api.safaricom.co.ke' : 'https://sandbox.safaricom.co.ke',
     consumerKey: required(secrets.consumerKey, 'Daraja consumer key'),
     consumerSecret: required(secrets.consumerSecret, 'Daraja consumer secret'),
@@ -102,7 +109,7 @@ export function normalizeMpesaPhone(input: string) {
 
 export async function initiateStkPush(input: { phone: string; amountMinor: number; accountReference: string; description: string }) {
   const config = await getDarajaConfig()
-  if ((process.env.MPESA_ENV ?? 'sandbox') !== 'sandbox') throw new Error('Live Daraja checkout is disabled until production approval is explicitly enabled')
+  if (!config.enabled) throw new Error('M-PESA checkout is currently disabled by the platform administrator')
   const timestamp = darajaTimestamp()
   const password = Buffer.from(`${config.shortcode}${config.passkey}${timestamp}`).toString('base64')
   const phone = normalizeMpesaPhone(input.phone)
@@ -135,8 +142,8 @@ export async function queryStkPush(checkoutRequestId: string) {
 }
 
 export async function initiateB2CPayout(input: { phone: string; amountMinor: number; reference: string }) {
-  if (process.env.MPESA_ENV !== 'sandbox') throw new Error('Live B2C payouts are disabled')
   const config = await getDarajaConfig()
+  if (config.environment !== 'sandbox') throw new Error('Live B2C payouts remain disabled; switch M-PESA to sandbox for payout testing')
   const initiator = required(config.b2cInitiatorName, 'B2C initiator name')
   const securityCredential = required(config.b2cSecurityCredential, 'B2C security credential')
   const resultUrl = await withDarajaCallbackToken(required(config.b2cResultUrl, 'B2C result URL'), config.callbackToken)
@@ -160,8 +167,8 @@ export async function initiateB2CPayout(input: { phone: string; amountMinor: num
 }
 
 export async function initiateReversal(input: { transactionId: string; amountMinor: number; reference: string }) {
-  if (process.env.MPESA_ENV !== 'sandbox') throw new Error('Live M-PESA reversals are disabled')
   const config = await getDarajaConfig()
+  if (config.environment !== 'sandbox') throw new Error('Live M-PESA reversals remain disabled; switch M-PESA to sandbox for reversal testing')
   const initiator = required(config.reversalInitiatorName, 'Reversal initiator name')
   const securityCredential = required(config.reversalSecurityCredential, 'Reversal security credential')
   const receiverParty = required(config.reversalReceiverParty, 'Reversal receiver party')

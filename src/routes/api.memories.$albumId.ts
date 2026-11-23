@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, asc, eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryMedia, memoryTags, profiles } from '../db/schema'
@@ -20,10 +20,10 @@ export const Route = createFileRoute('/api/memories/$albumId')({
         const db = getDb()
         const media = await db.select({
           id: memoryMedia.id, uploaderId: memoryMedia.uploaderId, mimeType: memoryMedia.mimeType,
-          mediaKind: memoryMedia.mediaKind, caption: memoryMedia.caption, createdAt: memoryMedia.createdAt,
+          mediaKind: memoryMedia.mediaKind, caption: memoryMedia.caption, moderationStatus: memoryMedia.moderationStatus, createdAt: memoryMedia.createdAt,
           uploaderName: profiles.displayName,
         }).from(memoryMedia).leftJoin(profiles, eq(profiles.userId, memoryMedia.uploaderId))
-          .where(and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved'), isNull(memoryMedia.deletedAt)))
+          .where(and(eq(memoryMedia.albumId, album.id), or(eq(memoryMedia.moderationStatus, 'approved'), eq(memoryMedia.uploaderId, userId)), isNull(memoryMedia.deletedAt)))
           .orderBy(asc(memoryMedia.createdAt)).limit(200)
         const tags = await db.select({
           id: memoryTags.id, mediaId: memoryTags.mediaId, taggedUserId: memoryTags.taggedUserId,

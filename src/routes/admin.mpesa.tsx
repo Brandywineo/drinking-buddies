@@ -9,7 +9,7 @@ type CredentialKey =
   | 'reversalIdentifierType' | 'reversalResultUrl' | 'reversalTimeoutUrl'
 type MpesaState = {
   enabled: boolean
-  environment: string
+  environment: 'sandbox' | 'production'
   ready: boolean
   encryptionReady: boolean
   checks: Record<string, boolean>
@@ -51,6 +51,7 @@ function MpesaAdminPage() {
   const [state, setState] = useState<MpesaState | null>(null)
   const [credentials, setCredentials] = useState<Partial<Record<CredentialKey, string>>>({})
   const [enabled, setEnabled] = useState(false)
+  const [environment, setEnvironment] = useState<'sandbox' | 'production'>('sandbox')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -61,7 +62,7 @@ function MpesaAdminPage() {
     setLoading(true); setError('')
     try {
       const result = await request<MpesaState>()
-      setState(result); setEnabled(result.enabled)
+      setState(result); setEnabled(result.enabled); setEnvironment(result.environment)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not load M-Pesa settings.')
     } finally { setLoading(false) }
@@ -72,7 +73,7 @@ function MpesaAdminPage() {
     setTesting(true); setError(''); setNotice('')
     try {
       const result = await request<{ connected: boolean; environment: string }>('POST')
-      setNotice(`Daraja OAuth connection successful (${result.environment} sandbox). No payment was initiated.`)
+      setNotice(`Daraja OAuth connection successful (${result.environment}). No payment was initiated.`)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Daraja connection test failed.')
     } finally { setTesting(false) }
@@ -82,7 +83,7 @@ function MpesaAdminPage() {
     event.preventDefault()
     setSaving(true); setError(''); setNotice('')
     try {
-      await request('PUT', { enabled, credentials })
+      await request('PUT', { enabled, environment, credentials })
       setCredentials({})
       setNotice('M-Pesa configuration saved securely. Existing secrets were kept where fields were left blank.')
       await load()
@@ -123,14 +124,23 @@ function MpesaAdminPage() {
       </section>}
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="text-xl font-semibold">Checkout availability</h2><p className="mt-1 text-sm opacity-65">Environment: <b className="uppercase">{state.environment}</b>. Production payments remain disabled in this release.</p></div>
+          <div><h2 className="text-xl font-semibold">Checkout availability</h2><p className="mt-1 text-sm opacity-65">Environment: <b className="uppercase">{environment}</b>. This selection controls the Daraja API host used for new checkouts.</p></div>
           <span className={'rounded-full px-3 py-1 text-xs font-semibold ' + (enabled ? 'bg-emerald-400/15 text-emerald-300' : 'bg-amber-400/15 text-amber-200')}>{enabled ? 'Enabled' : 'Disabled'}</span>
         </div>
         <label className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4">
-          <span><b className="block">Allow paid meetup checkout</b><small className="opacity-60">Attendees can request an M-Pesa STK Push for paid KES meetups.</small></span>
-          <input type="checkbox" checked={enabled} disabled={!state.ready || saving || !state.encryptionReady} onChange={(event) => setEnabled(event.target.checked)} className="h-5 w-5 accent-lime-300" />
+          <span><b className="block">Enable M-PESA payments</b><small className="opacity-60">Controls all new M-PESA STK checkout flows: meetup tickets, host memberships, venue packages and Consumer Plus.</small></span>
+          <input type="checkbox" checked={enabled} disabled={saving || !state.encryptionReady || (!enabled && !state.ready)} onChange={(event) => setEnabled(event.target.checked)} className="h-5 w-5 accent-lime-300" />
         </label>
+        <div className="mt-5 grid gap-2">
+          <label className="text-sm font-medium">Daraja environment</label>
+          <select value={environment} onChange={(event) => setEnvironment(event.target.value as 'sandbox' | 'production')} className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-3 text-white">
+            <option value="sandbox">Sandbox — test payments</option>
+            <option value="production">Live — real customer payments</option>
+          </select>
+          <small className="opacity-60">Sandbox and live Daraja apps use different credentials. Make sure the credentials above belong to the selected environment.</small>
+        </div>
         {!state.ready && <p className="mt-3 text-sm text-amber-200">Complete all required Daraja settings below before enabling checkout.</p>}
+        {environment === 'production' && <p className="mt-3 rounded-lg border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">Live mode sends real payment prompts to customers and moves real money. Confirm Safaricom production approval, shortcode, passkey and live API credentials before enabling it.</p>}
       </section>
       <section className="rounded-2xl border border-white/10 p-5">
         <h2 className="text-xl font-semibold">STK Push credentials</h2>
@@ -144,7 +154,7 @@ function MpesaAdminPage() {
       </details>
       <section className="rounded-xl border border-amber-300/20 bg-amber-300/[0.04] p-4 text-sm">
         <b className="text-amber-100">Payment safety</b>
-        <p className="mt-2 opacity-75">This release supports sandbox checkout only. Payment confirmation is accepted only after authenticated Daraja callbacks and server-side STK verification. Never use screenshots or client-side success messages as proof of payment. Payouts remain subject to admin review.</p>
+        <p className="mt-2 opacity-75">Checkout uses the selected Daraja environment. Payment confirmation is accepted only after authenticated Daraja callbacks and server-side STK verification. Never use screenshots or client-side success messages as proof of payment. B2C payouts and reversals remain sandbox-only and subject to admin review.</p>
       </section>
       <div className="flex flex-wrap justify-end gap-3">
         <button type="button" onClick={() => void testConnection()} disabled={testing || saving || !state.ready} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm disabled:opacity-40">{testing ? 'Testing Daraja…' : 'Test connection'}</button>
