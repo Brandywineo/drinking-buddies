@@ -9,7 +9,7 @@ type ReversalResult = { OriginatorConversationID?: string; ConversationID?: stri
 export const Route = createFileRoute('/api/webhooks/daraja/reversal')({
   server: { handlers: {
     POST: async ({ request }) => {
-      if (!isDarajaCallbackAuthorized(request)) return Response.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
+      if (!await isDarajaCallbackAuthorized(request)) return Response.json({ ResultCode: 1, ResultDesc: 'Unauthorized' }, { status: 401 })
       let payload: unknown
       try { payload = await request.json() } catch { return Response.json({ ResultCode: 0, ResultDesc: 'Accepted' }) }
       const result = (payload as { Result?: ReversalResult })?.Result
