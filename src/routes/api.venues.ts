@@ -30,7 +30,8 @@ export const Route = createFileRoute('/api/venues')({
         if (area) filters.push(ilike(venues.area, `%${area}%`))
         const rows = await db.select({
           id: venues.id, name: venues.name, description: venues.description, category: venues.category,
-          address: venues.address, area: venues.area, city: venues.city, websiteUrl: venues.websiteUrl,\n          coverPhotoUrl: sql<string | null>`(SELECT '/api/venue-photos/' || ${venuePhotos.id}::text FROM venue_photos WHERE venue_id = ${venues.id} AND status = 'approved' ORDER BY created_at DESC LIMIT 1)`,
+          address: venues.address, area: venues.area, city: venues.city, websiteUrl: venues.websiteUrl,
+          coverPhotoUrl: sql<string | null>`(SELECT '/api/venue-photos/' || ${venuePhotos.id}::text FROM venue_photos WHERE venue_id = ${venues.id} AND status = 'approved' ORDER BY created_at DESC LIMIT 1)`,
         }).from(venues).where(and(...filters)).orderBy(desc(venues.updatedAt)).limit(100)
         return jsonOk({ venues: rows })
       } catch (error) {
