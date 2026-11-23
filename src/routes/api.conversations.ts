@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, isNull, or } from 'drizzle-orm'
 import { getDb } from '../db'
-import { conversations, matches, meetupMembers, meetups, profiles, userBlocks } from '../db/schema'
+import { conversations, matches, meetupMembers, meetups, messages, profiles, userBlocks } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
@@ -39,10 +39,19 @@ export const Route = createFileRoute('/api/conversations')({
         .where(and(eq(conversations.kind, 'meetup'), or(
           eq(meetups.hostId, userId), eq(meetupMembers.status, 'approved'),
         )))
-      return jsonOk({ conversations: [
+      const items = [
         ...visibleMatches,
         ...meetupRows.map((row) => ({ id: row.id, kind: 'meetup' as const, createdAt: row.createdAt, meetup: { id: row.meetupId, title: row.title, area: row.area } })),
-      ] })
+      ]
+      const withActivity = await Promise.all(items.map(async (item) => {
+        const [lastMessage] = await db.select({
+          body: messages.body, createdAt: messages.createdAt, senderId: messages.senderId,
+        }).from(messages).where(eq(messages.conversationId, item.id))
+          .orderBy(desc(messages.createdAt)).limit(1)
+        return { ...item, lastMessage: lastMessage ?? null, lastActivityAt: lastMessage?.createdAt ?? item.createdAt }
+      }))
+      withActivity.sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime())
+      return jsonOk({ conversations: withActivity })
     } catch (error) {
       console.error('Conversation list failed', error)
       return jsonError('We could not load your conversations.', 500, 'CONVERSATIONS_FAILED')
