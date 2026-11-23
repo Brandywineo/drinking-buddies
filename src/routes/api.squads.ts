@@ -25,7 +25,7 @@ export const Route = createFileRoute('/api/squads')({
               eq(squads.ownerId, userId),
               exists(db.select({ id: squadMembers.id }).from(squadMembers).where(and(
                 eq(squadMembers.squadId, squads.id), eq(squadMembers.userId, userId),
-                eq(squadMembers.status, 'active'),
+                or(eq(squadMembers.status, 'active'), eq(squadMembers.status, 'invited')),
               ))),
             )
           : eq(squads.visibility, 'public')
