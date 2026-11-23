@@ -73,7 +73,7 @@ function MpesaAdminPage() {
         </div>
         <label className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4">
           <span><b className="block">Allow paid meetup checkout</b><small className="opacity-60">Attendees can request an M-Pesa STK Push for paid KES meetups.</small></span>
-          <input type="checkbox" checked={enabled} disabled={!state.ready || saving} onChange={(event) => setEnabled(event.target.checked)} className="h-5 w-5 accent-lime-300" />
+          <input type="checkbox" checked={enabled} disabled={(!state.ready && !enabled) || saving} onChange={(event) => setEnabled(event.target.checked)} className="h-5 w-5 accent-lime-300" />
         </label>
         {!state.ready && <p className="mt-3 text-sm text-amber-200">Complete every server configuration check below before enabling checkout.</p>}
         <div className="mt-4 flex justify-end"><button onClick={() => void save()} disabled={saving || enabled === state.enabled || (enabled && !state.ready)} className="rounded-lg bg-lime-300 px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-40">{saving ? 'Saving…' : 'Save M-Pesa settings'}</button></div>
