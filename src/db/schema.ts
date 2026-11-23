@@ -61,6 +61,8 @@ export const profiles = pgTable('profiles', {
   bio: varchar('bio', { length: 500 }),
   gender: varchar('gender', { length: 32 }),
   discoverable: boolean('discoverable').notNull().default(true),
+  displayPopularityScore: boolean('display_popularity_score').notNull().default(false),
+  displayReputationScore: boolean('display_reputation_score').notNull().default(false),
   locationVisibility: locationVisibility('location_visibility').notNull().default('private'),
   preferredGenders: jsonb('preferred_genders').$type<string[]>().notNull().default([]),
   connectionIntents: jsonb('connection_intents').$type<string[]>().notNull().default([]),
