@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, count, eq, sql } from 'drizzle-orm'
+import { and, count, eq } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { getDb } from '../db'
@@ -35,7 +35,8 @@ export const Route = createFileRoute('/api/venue-deals/$dealId/claim')({
           await tx.insert(venueEvents).values({ venueId: deal.venueId, userId, eventType: 'deal_claim', referenceId: deal.id })
           return { claim }
         })
-        if ('error' in result) return jsonError(result.error, 409, 'DEAL_CLAIM_UNAVAILABLE')
+        if ('error' in result && result.error) return jsonError(result.error, 409, 'DEAL_CLAIM_UNAVAILABLE')
+        if (!('claim' in result) || !result.claim) return jsonError('We could not create this claim.', 500, 'DEAL_CLAIM_FAILED')
         return jsonOk({ claim: result.claim }, 201)
       } catch (error) {
         console.error('Venue deal claim failed', error)
