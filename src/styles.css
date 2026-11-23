@@ -187,3 +187,8 @@ button{cursor:pointer}
 .favorite-profile-button.saved{color:#d8f36a;border-color:#d8f36a}
 .profile-stats-panel>div{grid-template-columns:repeat(6,minmax(0,1fr))}
 @media(max-width:560px){.profile-stats-panel>div{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.profile-favourites-panel{display:grid;gap:10px;padding:13px;border:1px solid #383d2d;border-radius:9px;background:#171914;color:#e8eadf}
+.profile-favourites-panel>div{display:grid;gap:4px}
+.profile-favourites-panel small{color:#a4a99a;font-size:10px}
+.profile-favourites-panel p{margin:0;color:#e2e5d8;font-size:11px;line-height:1.6}
