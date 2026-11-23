@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/go-out/$planId/join')({
         if (!parsed.success) return jsonError('Invalid plan.', 400, 'INVALID_PLAN')
         const db = getDb()
         const result = await db.transaction(async (tx) => {
-          await tx.execute(sql.raw('SELECT id FROM go_out_plans WHERE id = ' + "'" + parsed.data.planId + "'" + ' FOR UPDATE'))
+          await tx.execute(sql`SELECT id FROM go_out_plans WHERE id = ${parsed.data.planId} FOR UPDATE`)
           const [plan] = await tx.select().from(goOutPlans).where(eq(goOutPlans.id, parsed.data.planId)).limit(1)
           if (!plan || plan.status !== 'open' || plan.startsAt <= new Date()) return { error: 'NOT_FOUND' as const }
           if (plan.visibility !== 'public' && plan.creatorId !== userId) return { error: 'PRIVATE' as const }
