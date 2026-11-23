@@ -1,6 +1,6 @@
 import { createFileRoute,Link } from '@tanstack/react-router'
 import { useEffect,useState } from 'react'
-export const Route=createFileRoute('/admin/')({component:AdminDashboard})
+export const Route=createFileRoute('/admin')({component:AdminDashboard})
 type Counts={users:number;reports:number;pendingReports:number}
 function AdminDashboard(){
  const [counts,setCounts]=useState<Counts|null>(null),[error,setError]=useState('')
