@@ -3,7 +3,7 @@ import { compare } from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { authSessions, profiles, users } from '../db/schema'
+import { authSessions, platformSettings, profiles, users } from '../db/schema'
 import { createOpaqueToken, hashToken } from '../lib/crypto'
 import { jsonError } from '../lib/http'
 
@@ -27,6 +27,9 @@ export const Route = createFileRoute('/api/auth/login')({
         try {
           const db = getDb()
           const email = parsed.data.email.toLowerCase()
+          const [verificationSetting] = await db.select({ value: platformSettings.value })
+            .from(platformSettings).where(eq(platformSettings.key, 'email_verification')).limit(1)
+          const verificationRequired = Boolean(verificationSetting?.value && typeof verificationSetting.value === 'object' && (verificationSetting.value as { required?: unknown }).required === true)
           const [user] = await db.select({
             id: users.id,
             passwordHash: users.passwordHash,
@@ -37,6 +40,10 @@ export const Route = createFileRoute('/api/auth/login')({
 
           if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) {
             return jsonError('Email or password is incorrect.', 401, 'INVALID_CREDENTIALS')
+          }
+          if (user.status === 'pending_verification' && !verificationRequired) {
+            await db.update(users).set({ status: 'active', updatedAt: new Date() }).where(eq(users.id, user.id))
+            user.status = 'active'
           }
           if (user.status !== 'active') {
             return jsonError('Verify your email before signing in.', 403, 'EMAIL_NOT_VERIFIED')
