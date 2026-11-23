@@ -93,7 +93,7 @@ Implemented in this branch:
 - Responsive discovery UI backed by authenticated profile and discovery APIs; meetup and venue UI shells remain demo-backed.
 - PostgreSQL/PostGIS Drizzle schema and SQL migrations.
 - Local Docker PostGIS database.
-- Email/password registration, 18+ acknowledgement, one-time email verification, login, session lookup and logout.
+- Email/password registration with 18+ acknowledgement, optional email verification (disabled by default), immediate session creation, login, session lookup and logout.
 - Transactional email outbox and retrying SMTP worker.
 - Health and database readiness endpoints.
 - CI build/typecheck workflow.
@@ -132,3 +132,8 @@ The app includes a web app manifest, install affordance, standalone display mode
 The service worker caches only static app assets and the offline fallback. It deliberately does not cache authenticated HTML, API responses, messages or payment data. Installability and service-worker registration require HTTPS in production (localhost is supported for development).
 
 This PWA is an installable web app, not a signed Android APK or iOS App Store binary. Native-store packaging can be added separately after the production domain is configured.
+
+
+## Administrator bootstrap
+
+The first administrator is an ordinary registered user whose normalized email is listed in the server-side `ADMIN_EMAILS` environment variable (comma-separated for multiple administrators). Set that variable before the administrator signs in, then register or sign in with that email address and open `/admin/`. There is no separate default admin password. Never expose `ADMIN_EMAILS` through a client-side variable.
