@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CalendarDays, Check, Clock, MapPin, MessageCircle, Plus, RefreshCw, ShieldCheck, Users, X } from 'lucide-react'
+import { CalendarDays, Clock, MapPin, MessageCircle, Plus, RefreshCw, Users, X } from 'lucide-react'
 
 type Props = { currentUserId: string | null; signedIn: boolean; onSignIn: () => void }
 type Plan = {
