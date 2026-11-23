@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryMedia } from '../db/schema'
@@ -10,7 +9,6 @@ import { jsonError, jsonOk } from '../lib/http'
 export const Route = createFileRoute('/api/memories/$albumId/media')({
   server: { handlers: {
     POST: async ({ request, params }) => {
-      let storedKey: string | null = null
       try {
         const userId = await getAuthenticatedUserId(request)
         if (!userId) return jsonError('Sign in to upload memories.', 401, 'UNAUTHENTICATED')
@@ -22,7 +20,6 @@ export const Route = createFileRoute('/api/memories/$albumId/media')({
         const file = form.get('file')
         if (!(file instanceof File)) return jsonError('Choose a photo or MP4 video.', 400, 'MEDIA_REQUIRED')
         const stored = await storeCommunityFile(file, true)
-        storedKey = stored.key
         const caption = String(form.get('caption') ?? '').trim().slice(0, 500) || null
         const [media] = await getDb().insert(memoryMedia).values({
           albumId: album.id, uploaderId: userId, storageKey: stored.key, mimeType: stored.mimeType,
