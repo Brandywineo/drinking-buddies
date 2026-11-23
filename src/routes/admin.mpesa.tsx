@@ -53,6 +53,7 @@ function MpesaAdminPage() {
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -66,6 +67,16 @@ function MpesaAdminPage() {
     } finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
+
+  async function testConnection() {
+    setTesting(true); setError(''); setNotice('')
+    try {
+      const result = await request<{ connected: boolean; environment: string }>('POST')
+      setNotice(`Daraja OAuth connection successful (${result.environment} sandbox). No payment was initiated.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Daraja connection test failed.')
+    } finally { setTesting(false) }
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -136,8 +147,9 @@ function MpesaAdminPage() {
         <p className="mt-2 opacity-75">This release supports sandbox checkout only. Payment confirmation is accepted only after authenticated Daraja callbacks and server-side STK verification. Never use screenshots or client-side success messages as proof of payment. Payouts remain subject to admin review.</p>
       </section>
       <div className="flex flex-wrap justify-end gap-3">
-        <button type="button" onClick={() => { setCredentials({}); void load() }} disabled={saving} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm">Discard changes</button>
-        <button type="submit" disabled={saving || !state.encryptionReady} className="rounded-lg bg-lime-300 px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-40">{saving ? 'Saving securely…' : 'Save M-Pesa configuration'}</button>
+        <button type="button" onClick={() => void testConnection()} disabled={testing || saving || !state.ready} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm disabled:opacity-40">{testing ? 'Testing Daraja…' : 'Test connection'}</button>
+        <button type="button" onClick={() => { setCredentials({}); void load() }} disabled={saving || testing} className="rounded-lg border border-white/15 px-5 py-2.5 text-sm">Discard changes</button>
+        <button type="submit" disabled={saving || testing || !state.encryptionReady} className="rounded-lg bg-lime-300 px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-40">{saving ? 'Saving securely…' : 'Save M-Pesa configuration'}</button>
       </div>
     </form>}
   </main>
