@@ -25,7 +25,7 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings/$bookingId
       )).limit(1)
       if (!booking) return jsonError('Booking not found.', 404, 'BOOKING_NOT_FOUND')
       const [payment] = await db.select({
-        status: payments.status, paidAt: payments.paidAt,
+        status: payments.status, paidAt: payments.paidAt, metadata: payments.metadata,
       }).from(payments).where(eq(payments.bookingId, booking.id)).orderBy(desc(payments.createdAt)).limit(1)
       return jsonOk({ booking: { ...booking, status: booking.status === 'pending_payment' && booking.expiresAt <= new Date() ? 'expired' : booking.status }, payment: payment ?? null })
     },
