@@ -99,6 +99,13 @@
       "when": 1795996800000,
       "tag": "0013_memories_venue_partnerships",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1796083200000,
+      "tag": "0014_profile_photos_analytics",
+      "breakpoints": true
     }
   ]
 }
