@@ -166,21 +166,12 @@ jobs:
           grep -q '"pricingType":"paid"' /tmp/paid-meetup.json
           grep -q '"priceMinor":150000' /tmp/paid-meetup.json
           PAID_MEETUP_ID="$(jq -r '.data.meetup.id' /tmp/paid-meetup.json)"
-          BOOKING_PAYLOAD='{"quantity":8,"idempotencyKey":"ci-paid-booking-user-b-001"}'
-          test "$(curl --silent --output /tmp/paid-booking.json --write-out '%{http_code}' \
+          BOOKING_PAYLOAD='{"quantity":1,"phone":"254712345678","idempotencyKey":"ci-paid-booking-user-b-001"}'
+          test "$(curl --silent --output /tmp/paid-booking-disabled.json --write-out '%{http_code}' \
             -X POST "$BASE_URL/api/meetups/$PAID_MEETUP_ID/bookings" -H "Cookie: db_session=$TOKEN_B" \
-            -H 'Content-Type: application/json' --data "$BOOKING_PAYLOAD")" = "201"
-          BOOKING_ID="$(jq -r '.data.booking.id' /tmp/paid-booking.json)"
-          test -n "$BOOKING_ID" && test "$BOOKING_ID" != "null"
-          test "$(jq -r '.data.booking.status' /tmp/paid-booking.json)" = "pending_payment"
-          test "$(jq -r '.data.payment.enabled' /tmp/paid-booking.json)" = "false"
-          test "$(curl --silent --output /tmp/paid-booking-retry.json --write-out '%{http_code}' \
-            -X POST "$BASE_URL/api/meetups/$PAID_MEETUP_ID/bookings" -H "Cookie: db_session=$TOKEN_B" \
-            -H 'Content-Type: application/json' --data "$BOOKING_PAYLOAD")" = "200"
-          test "$(jq -r '.data.booking.id' /tmp/paid-booking-retry.json)" = "$BOOKING_ID"
-          test "$(curl --silent --output /tmp/paid-booking-over-capacity.json --write-out '%{http_code}' \
-            -X POST "$BASE_URL/api/meetups/$PAID_MEETUP_ID/bookings" -H "Cookie: db_session=$TOKEN_C" \
-            -H 'Content-Type: application/json' --data '{"quantity":2,"idempotencyKey":"ci-paid-booking-user-c-001"}')" = "409"
+            -H 'Content-Type: application/json' --data "$BOOKING_PAYLOAD")" = "503"
+          grep -q 'MPESA_DISABLED' /tmp/paid-booking-disabled.json
+          test "$(psql "$DATABASE_URL" -tAc "SELECT count(*) FROM meetup_bookings WHERE meetup_id='$PAID_MEETUP_ID'")" = "0"
           test "$(curl --silent --output /tmp/paid-meetup-join.json --write-out '%{http_code}' \
             -X POST "$BASE_URL/api/meetups/$PAID_MEETUP_ID/join" -H "Cookie: db_session=$TOKEN_C")" = "409"
           test "$(psql "$DATABASE_URL" -tAc "SELECT count(*) FROM host_subscriptions WHERE user_id='$USER_A' AND plan='free_trial' AND status='trialing'")" = "1"
