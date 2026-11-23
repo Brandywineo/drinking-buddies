@@ -26,7 +26,7 @@ export function VenueHub({ signedIn }: { signedIn: boolean }) {
   useEffect(() => { void load() }, [])
   async function submitVenue(event: FormEvent) {
     event.preventDefault(); setNotice('')
-    const response = await fetch('/api/venues', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...form,meetupId:form.meetupId||null,squadId:form.squadId||null}) })
+    const response = await fetch('/api/venues', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
     const result = await response.json()
     setNotice(response.ok ? 'Venue submitted. It will appear after admin approval.' : result.error?.message ?? 'Could not submit venue.')
     if (response.ok) setShowApply(false)
