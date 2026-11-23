@@ -5,7 +5,7 @@ import { getDb } from '../db'
 import { profiles,users } from '../db/schema'
 import { getAdminUserId } from '../lib/admin'
 import { jsonError,jsonOk } from '../lib/http'
-const schema=z.object({userId:z.string().uuid(),status:z.enum(['active','suspended'])}).strict()
+const schema=z.object({userId:z.string().uuid(),status:z.enum(['active','suspended']).optional(),markEmailVerified:z.boolean().optional()}).strict().refine(v=>Number(v.status!==undefined)+Number(v.markEmailVerified!==undefined)===1)
 export const Route=createFileRoute('/api/admin/users')({server:{handlers:{
  GET:async({request})=>{
   if(!await getAdminUserId(request))return jsonError('Admin access required.',403,'ADMIN_REQUIRED')
@@ -21,7 +21,10 @@ export const Route=createFileRoute('/api/admin/users')({server:{handlers:{
   const parsed=schema.safeParse(raw)
   if(!parsed.success)return jsonError('Invalid user update.',400,'INVALID_USER_UPDATE')
   if(parsed.data.userId===adminId&&parsed.data.status==='suspended')return jsonError('You cannot suspend your own administrator account.',400,'CANNOT_SUSPEND_SELF')
-  const [updated]=await getDb().update(users).set({status:parsed.data.status,updatedAt:new Date()}).where(eq(users.id,parsed.data.userId)).returning({id:users.id,status:users.status})
+  const values=parsed.data.status
+   ? {status:parsed.data.status,updatedAt:new Date()}
+   : {emailVerifiedAt:new Date(),status:'active' as const,updatedAt:new Date()}
+  const [updated]=await getDb().update(users).set(values).where(eq(users.id,parsed.data.userId)).returning({id:users.id,status:users.status,emailVerifiedAt:users.emailVerifiedAt})
   if(!updated)return jsonError('User not found.',404,'USER_NOT_FOUND')
   return jsonOk({user:updated})
  }
