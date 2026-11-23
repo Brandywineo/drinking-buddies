@@ -8,6 +8,7 @@ import { Meetups } from './Meetups'
 import { Messaging } from './Messaging'
 import { GoOutHub } from './GoOutHub'
 import { MemoriesHub, VenueHub } from './CommunityHubs'
+import { ActivityCenter } from './ActivityCenter'
 
 type Tab = 'discover' | 'meetups' | 'places' | 'messages' | 'community' | 'memories'
 
@@ -62,6 +63,7 @@ function App() {
   const [displayPopularityScore, setDisplayPopularityScore] = useState(false)
   const [displayReputationScore, setDisplayReputationScore] = useState(false)
   const [showAccountMenu, setShowAccountMenu] = useState(false)
+  const [showActivity, setShowActivity] = useState(false)
   const [showLocationPicker, setShowLocationPicker] = useState(false)
   const [savingLocation, setSavingLocation] = useState(false)
   const [profiles, setProfiles] = useState<MemberProfile[]>([])
@@ -323,7 +325,7 @@ function App() {
             <button className="location-pill" onClick={() => authStatus === 'signed_in' ? setShowLocationPicker((value) => !value) : window.location.assign('/login')} aria-expanded={showLocationPicker}><MapPin size={15} /><span>{profile?.homeArea ?? 'Set your area'}</span><ChevronDown size={14} /></button>
             {showLocationPicker && <div className="location-menu"><b>Choose your area</b><select value={profile?.homeArea ?? ''} disabled={savingLocation} onChange={(event) => void saveLocation(event.target.value)}><option value="">Not set</option>{profile?.homeArea && !KENYA_AREAS.includes(profile.homeArea) && <option value={profile.homeArea}>{profile.homeArea} (current)</option>}{KENYA_AREAS.map((place) => <option key={place} value={place}>{place}</option>)}</select><small>Only the area you choose is used for discovery. Exact GPS is not shared.</small></div>}
           </div>
-          <div className="top-actions"><button className="icon-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={19} /><i /></button><div className="account-menu-wrap"><button className="top-avatar" aria-label="Account menu" aria-expanded={showAccountMenu} onClick={() => authStatus === 'signed_in' ? setShowAccountMenu((value) => !value) : window.location.assign('/login')}>{(profile?.displayName ?? currentUser?.email ?? 'Y').slice(0, 1).toUpperCase()}</button>{showAccountMenu && <div className="account-menu"><b>{profile?.displayName ?? currentUser?.email}</b><button onClick={() => { setShowProfileForm(true); setShowAccountMenu(false) }}>My profile</button><label className="cursor-pointer rounded-lg px-3 py-2 text-sm hover:bg-white/5">Change profile photo<input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={profilePhotoBusy} onChange={(event) => { const file = event.target.files?.[0]; if (file) { setShowAccountMenu(false); if (!profile) { setShowProfileForm(true); notify('Save your profile first, then choose a photo again.') } else void uploadProfilePhoto(file) } event.currentTarget.value = '' }} /></label><button onClick={() => { setShowAccountMenu(false); void signOut() }}>Sign out</button></div>}</div></div>
+          <div className="top-actions"><div className="account-menu-wrap"><button className="icon-button" aria-label="Notifications" aria-expanded={showActivity} onClick={() => { if (authStatus === 'signed_in') setShowActivity((value) => !value); else window.location.assign('/login') }}><Bell size={19} /></button>{showActivity && <ActivityCenter onClose={() => setShowActivity(false)} onOpenDiscover={() => setTab('discover')} onOpenMessages={() => setTab('messages')} onOpenMemories={() => setTab('memories')} />}</div><div className="account-menu-wrap"><button className="top-avatar" aria-label="Account menu" aria-expanded={showAccountMenu} onClick={() => authStatus === 'signed_in' ? setShowAccountMenu((value) => !value) : window.location.assign('/login')}>{(profile?.displayName ?? currentUser?.email ?? 'Y').slice(0, 1).toUpperCase()}</button>{showAccountMenu && <div className="account-menu"><b>{profile?.displayName ?? currentUser?.email}</b><button onClick={() => { setShowProfileForm(true); setShowAccountMenu(false) }}>My profile</button><label className="cursor-pointer rounded-lg px-3 py-2 text-sm hover:bg-white/5">Change profile photo<input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={profilePhotoBusy} onChange={(event) => { const file = event.target.files?.[0]; if (file) { setShowAccountMenu(false); if (!profile) { setShowProfileForm(true); notify('Save your profile first, then choose a photo again.') } else void uploadProfilePhoto(file) } event.currentTarget.value = '' }} /></label><button onClick={() => { setShowAccountMenu(false); void signOut() }}>Sign out</button></div>}</div></div>
         </header>
 
         <div className="content-wrap">
