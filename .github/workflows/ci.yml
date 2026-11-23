@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'feat/**']
+    branches: [main, 'feat/**', 'feature/**']
   pull_request:
     branches: [main]
 
@@ -50,6 +50,8 @@ jobs:
           curl --silent --fail http://127.0.0.1:3000/api/ready | grep -q '"database":"connected"'
           test "$(curl --silent --output /tmp/conversations.json --write-out '%{http_code}' http://127.0.0.1:3000/api/conversations)" = "401"
           test "$(curl --silent --output /tmp/messages.json --write-out '%{http_code}' http://127.0.0.1:3000/api/conversations/00000000-0000-4000-8000-000000000000/messages)" = "401"
+          test "$(curl --silent --output /tmp/memories.json --write-out '%{http_code}' http://127.0.0.1:3000/api/memories)" = "401"
+          curl --silent --fail http://127.0.0.1:3000/api/venues | grep -q '"venues"'
 
       - name: Integration test authenticated two-user messaging
         shell: bash
