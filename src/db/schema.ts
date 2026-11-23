@@ -485,3 +485,68 @@ export const favoriteVenues = pgTable('favorite_venues', {
   uniqueIndex('favorite_venues_user_venue_uq').on(table.userId, table.venueId),
   index('favorite_venues_venue_idx').on(table.venueId),
 ])
+
+
+export const goOutPlans = pgTable('go_out_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  creatorId: uuid('creator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 100 }).notNull(),
+  description: varchar('description', { length: 500 }),
+  area: varchar('area', { length: 160 }).notNull(),
+  venueName: varchar('venue_name', { length: 160 }),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  capacity: integer('capacity').notNull().default(8),
+  visibility: varchar('visibility', { length: 16 }).notNull().default('public'),
+  status: varchar('status', { length: 16 }).notNull().default('open'),
+  ...timestamps,
+}, (table) => [
+  index('go_out_plans_starts_idx').on(table.startsAt),
+  index('go_out_plans_creator_idx').on(table.creatorId),
+  index('go_out_plans_visibility_status_idx').on(table.visibility, table.status),
+])
+
+export const goOutPlanMembers = pgTable('go_out_plan_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: uuid('plan_id').notNull().references(() => goOutPlans.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: varchar('status', { length: 16 }).notNull().default('going'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('go_out_plan_members_plan_user_uq').on(table.planId, table.userId),
+  index('go_out_plan_members_user_idx').on(table.userId),
+])
+
+export const squads = pgTable('squads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 80 }).notNull(),
+  description: varchar('description', { length: 500 }),
+  area: varchar('area', { length: 160 }),
+  visibility: varchar('visibility', { length: 16 }).notNull().default('public'),
+  ...timestamps,
+}, (table) => [
+  index('squads_owner_idx').on(table.ownerId),
+  index('squads_visibility_idx').on(table.visibility),
+])
+
+export const squadMembers = pgTable('squad_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  squadId: uuid('squad_id').notNull().references(() => squads.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 16 }).notNull().default('member'),
+  status: varchar('status', { length: 16 }).notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('squad_members_squad_user_uq').on(table.squadId, table.userId),
+  index('squad_members_user_idx').on(table.userId),
+])
+
+export const squadMessages = pgTable('squad_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  squadId: uuid('squad_id').notNull().references(() => squads.id, { onDelete: 'cascade' }),
+  senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: varchar('body', { length: 2000 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('squad_messages_squad_created_idx').on(table.squadId, table.createdAt),
+])
