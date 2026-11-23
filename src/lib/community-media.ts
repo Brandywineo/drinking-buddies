@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { extname, join } from 'node:path'
+import { join } from 'node:path'
 import { and, eq } from 'drizzle-orm'
 import { getDb } from '../db'
 import { memoryAlbums, meetupMembers, meetups, squadMembers, venueStaff, venues } from '../db/schema'
