@@ -126,18 +126,19 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
           const previous = await tx.select().from(payments).where(eq(payments.bookingId, reservation.booking.id))
             .orderBy(desc(payments.createdAt))
           const latest = previous[0]
-          if (latest && latest.status !== 'failed') return { existing: latest }
+          if (latest && latest.status !== 'failed') return { payment: latest, reusedPayment: true as const }
           const idempotencyKey = `meetup-booking:${reservation.booking.id}:${previous.length + 1}`
-          const [payment] = await tx.insert(payments).values({
+          const [createdPayment] = await tx.insert(payments).values({
             userId: attendeeId, bookingId: reservation.booking.id, provider: 'daraja',
             amountMinor: reservation.booking.grossAmountMinor, currency: 'KES',
             status: 'pending', idempotencyKey, metadata: { phone, purpose: 'meetup_booking' },
           }).returning()
-          return { payment }
+          if (!createdPayment) throw new Error('Could not create payment record')
+          return { payment: createdPayment, reusedPayment: false as const }
         })
 
-        if ('existing' in paymentSetup) {
-          const p = paymentSetup.existing
+        if (paymentSetup.reusedPayment) {
+          const p = paymentSetup.payment
           return jsonOk({
             booking: reservation.booking,
             payment: { status: p.status, pending: p.status === 'pending', alreadyInitiated: Boolean(p.providerReference) },
