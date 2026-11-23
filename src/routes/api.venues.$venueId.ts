@@ -43,7 +43,7 @@ export const Route = createFileRoute('/api/venues/$venueId')({
         ])
         const userId = await getAuthenticatedUserId(request)
         if (userId) await db.insert(venueEvents).values({ venueId: venue.id, userId, eventType: 'view' })
-        return jsonOk({ venue, photos, deals })
+        return jsonOk({ venue, photos: photos.map(photo => ({ ...photo, url: '/api/venue-photos/' + photo.id })), deals })
       } catch (error) {
         console.error('Venue detail failed', error)
         return jsonError('We could not load this venue.', 500, 'VENUE_DETAIL_FAILED')
