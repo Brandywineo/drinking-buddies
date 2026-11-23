@@ -97,7 +97,7 @@ export function Messaging({ currentUserId }: { currentUserId: string }) {
     <div className="section-heading"><div><div className="eyebrow">YOUR CONNECTIONS</div><h2>Messages</h2><p>Direct chats unlock after a mutual match. New messages refresh automatically.</p></div><button className="filter-button" onClick={() => { void loadConversations().catch((cause) => setError(cause.message)) }}><RefreshCw size={15} /> Refresh</button></div>
     {error && <p className="auth-error" role="alert">{error}</p>}
     <div className="chat-layout">
-      <aside className="chat-list">
+      <aside className={'chat-list ' + (showChat ? 'mobile-hidden' : '')}>
         {conversations.map((item) => <button key={item.id} className={'chat-list-item ' + (activeId === item.id ? 'selected' : '')} onClick={() => { setActiveId(item.id); setShowChat(true) }}>
           <span className="avatar">{(item.peer?.displayName ?? item.meetup?.title ?? 'M').slice(0, 1).toUpperCase()}</span>
           <span className="chat-list-copy"><b>{item.peer?.displayName ?? item.meetup?.title ?? 'Meetup chat'}</b><small>{item.lastMessage?.body ?? (item.kind === 'match' ? 'Matched connection — say hello' : item.meetup?.area ?? 'Group meetup')}</small></span>{item.lastActivityAt && <time className="chat-list-time">{new Date(item.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>}
