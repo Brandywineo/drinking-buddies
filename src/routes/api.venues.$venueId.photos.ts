@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { venuePhotos, venues } from '../db/schema'
@@ -10,7 +10,6 @@ import { jsonError, jsonOk } from '../lib/http'
 export const Route = createFileRoute('/api/venues/$venueId/photos')({
   server: { handlers: {
     POST: async ({ request, params }) => {
-      let storageKey: string | null = null
       try {
         const userId = await getAuthenticatedUserId(request)
         if (!userId) return jsonError('Sign in to upload venue photos.', 401, 'UNAUTHENTICATED')
@@ -24,7 +23,6 @@ export const Route = createFileRoute('/api/venues/$venueId/photos')({
         const file = form.get('file')
         if (!(file instanceof File)) return jsonError('Choose a JPG, PNG or WebP photo.', 400, 'PHOTO_REQUIRED')
         const stored = await storeCommunityFile(file, false)
-        storageKey = stored.key
         const [photo] = await getDb().insert(venuePhotos).values({
           venueId: id.data, uploadedById: userId, storageKey: stored.key, mimeType: stored.mimeType,
           sizeBytes: stored.sizeBytes, caption: String(form.get('caption') ?? '').trim().slice(0,240) || null,
