@@ -182,3 +182,55 @@ jobs:
             -X POST "$BASE_URL/api/meetups" -H "Cookie: db_session=$TOKEN_A" \
             -H 'Content-Type: application/json' --data "$PAID_MEETUP_PAYLOAD")" = "403"
           echo "Paid meetup pricing, one-time free trial and expired-membership gate tests passed."
+
+          # M3 discovery intent modes: verify friendship and dating filters return compatible profiles.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v user_a="$USER_A" <<'SQL'
+          UPDATE profiles
+          SET connection_intents='["friendship","social_and_dating"]'::jsonb,
+              preferred_genders='[]'::jsonb
+          WHERE user_id=:'user_a';
+          SQL
+          test "$(curl --silent --output /tmp/discovery-friendship.json --write-out '%{http_code}' \
+            "$BASE_URL/api/discovery?mode=friendship" -H "Cookie: db_session=$TOKEN_C")" = "200"
+          grep -q 'CI User A' /tmp/discovery-friendship.json
+          test "$(curl --silent --output /tmp/discovery-dating.json --write-out '%{http_code}' \
+            "$BASE_URL/api/discovery?mode=dating" -H "Cookie: db_session=$TOKEN_C")" = "200"
+          grep -q 'CI User A' /tmp/discovery-dating.json
+
+          # M4 spontaneous Go Out plans: create, join and list with member counts.
+          GO_OUT_STARTS_AT="$(date -u -d '+3 days' +%Y-%m-%dT%H:%M:%SZ)"
+          GO_OUT_PAYLOAD="$(jq -n --arg title "CI Friday plans" --arg area "Westlands, Nairobi" --arg startsAt "$GO_OUT_STARTS_AT" '{title:$title,area:$area,startsAt:$startsAt,capacity:4,visibility:"public",description:"Automated Go Out integration test"}')"
+          test "$(curl --silent --output /tmp/go-out-create.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/go-out" -H "Cookie: db_session=$TOKEN_C" \
+            -H 'Content-Type: application/json' --data "$GO_OUT_PAYLOAD")" = "201"
+          GO_OUT_ID="$(jq -r '.data.plan.id' /tmp/go-out-create.json)"
+          test -n "$GO_OUT_ID" && test "$GO_OUT_ID" != "null"
+          test "$(curl --silent --output /tmp/go-out-join.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/go-out/$GO_OUT_ID/join" -H "Cookie: db_session=$TOKEN_B")" = "200"
+          test "$(curl --silent --output /tmp/go-out-list.json --write-out '%{http_code}' \
+            "$BASE_URL/api/go-out" -H "Cookie: db_session=$TOKEN_B")" = "200"
+          grep -q 'CI Friday plans' /tmp/go-out-list.json
+          grep -q '"goingCount":2' /tmp/go-out-list.json
+
+          # M4 permanent squads: create, invite by email, accept and use squad discussion.
+          SQUAD_PAYLOAD='{"name":"CI Friday Crew","description":"Automated squad integration test","area":"Nairobi","visibility":"private"}'
+          test "$(curl --silent --output /tmp/squad-create.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/squads" -H "Cookie: db_session=$TOKEN_A" \
+            -H 'Content-Type: application/json' --data "$SQUAD_PAYLOAD")" = "201"
+          SQUAD_ID="$(jq -r '.data.squad.id' /tmp/squad-create.json)"
+          test -n "$SQUAD_ID" && test "$SQUAD_ID" != "null"
+          test "$(curl --silent --output /tmp/squad-invite.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/squads/$SQUAD_ID/invitations" -H "Cookie: db_session=$TOKEN_A" \
+            -H 'Content-Type: application/json' --data '{"email":"ci-b@example.test"}')" = "200"
+          test "$(curl --silent --output /tmp/squad-invited-list.json --write-out '%{http_code}' \
+            "$BASE_URL/api/squads" -H "Cookie: db_session=$TOKEN_B")" = "200"
+          grep -q '"myStatus":"invited"' /tmp/squad-invited-list.json
+          test "$(curl --silent --output /tmp/squad-join.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/squads/$SQUAD_ID/join" -H "Cookie: db_session=$TOKEN_B")" = "200"
+          test "$(curl --silent --output /tmp/squad-message.json --write-out '%{http_code}' \
+            -X POST "$BASE_URL/api/squads/$SQUAD_ID/messages" -H "Cookie: db_session=$TOKEN_B" \
+            -H 'Content-Type: application/json' --data '{"body":"See you Friday, crew!"}')" = "201"
+          test "$(curl --silent --output /tmp/squad-history.json --write-out '%{http_code}' \
+            "$BASE_URL/api/squads/$SQUAD_ID/messages" -H "Cookie: db_session=$TOKEN_A")" = "200"
+          grep -q 'See you Friday, crew!' /tmp/squad-history.json
+          echo "M3 discovery modes and M4 Go Out plans, private squad invitations and squad discussion integration tests passed."
