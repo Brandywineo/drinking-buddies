@@ -92,6 +92,13 @@
       "when": 1795910400000,
       "tag": "0012_go_out_squads",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795996800000,
+      "tag": "0013_memories_venue_partnerships",
+      "breakpoints": true
     }
   ]
 }
