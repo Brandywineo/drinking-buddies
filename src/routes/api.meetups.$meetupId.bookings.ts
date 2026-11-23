@@ -54,6 +54,12 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
           if (meetup.hostId === attendeeId) return { error: 'HOST' as const }
           if (meetup.pricingType !== 'paid' || meetup.priceMinor <= 0 || meetup.currency !== 'KES') return { error: 'NOT_PAID' as const }
           if (meetup.visibility !== 'public') return { error: 'APPROVAL_REQUIRED' as const }
+          const [confirmedBooking] = await tx.select({ id: meetupBookings.id }).from(meetupBookings).where(and(
+            eq(meetupBookings.meetupId, meetup.id),
+            eq(meetupBookings.attendeeId, attendeeId),
+            eq(meetupBookings.status, 'confirmed'),
+          )).limit(1)
+          if (confirmedBooking) return { error: 'ALREADY_BOOKED' as const }
 
           const [existing] = await tx.select().from(meetupBookings)
             .where(eq(meetupBookings.idempotencyKey, parsedBody.data.idempotencyKey)).limit(1)
@@ -114,6 +120,7 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
         if ('error' in reservation) {
           if (reservation.error === 'NOT_FOUND') return jsonError('This meetup is unavailable.', 404, 'MEETUP_NOT_FOUND')
           if (reservation.error === 'HOST') return jsonError('You cannot book your own meetup.', 409, 'HOST_CANNOT_BOOK')
+          if (reservation.error === 'ALREADY_BOOKED') return jsonError('You already have a confirmed ticket for this meetup.', 409, 'ALREADY_BOOKED')
           if (reservation.error === 'NOT_PAID') return jsonError('This booking endpoint is only for paid KES meetups.', 409, 'MEETUP_NOT_PAID')
           if (reservation.error === 'APPROVAL_REQUIRED') return jsonError('Paid meetups must use open joining so successful payment can confirm entry immediately.', 409, 'MEETUP_REQUIRES_PUBLIC_JOIN')
           if (reservation.error === 'IDEMPOTENCY_CONFLICT') return jsonError('That idempotency key is already in use.', 409, 'IDEMPOTENCY_CONFLICT')
