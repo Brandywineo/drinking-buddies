@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  ArrowRight, Bell, CalendarDays, Check, ChevronDown, Compass, Heart, Star,
+  ArrowRight, Bell, CalendarDays, Camera, Check, ChevronDown, Compass, Heart, Star,
   MapPin, MessageCircle, Plus, Search, ShieldCheck, SlidersHorizontal,
   Sparkles, Users, Wine, X,
 } from 'lucide-react'
-import { venues } from './data/demo'
 import { Meetups } from './Meetups'
 import { Messaging } from './Messaging'
 import { GoOutHub } from './GoOutHub'
+import { MemoriesHub, VenueHub } from './CommunityHubs'
 
-type Tab = 'discover' | 'meetups' | 'places' | 'messages' | 'community'
+type Tab = 'discover' | 'meetups' | 'places' | 'messages' | 'community' | 'memories'
 
 type MemberProfile = {
   id: string
@@ -275,6 +275,7 @@ function App() {
           <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups"  />
           <NavButton active={tab === 'community'} onClick={() => setTab('community')} icon={<CalendarDays size={19} />} label="Let's Go Out" />
           <NavButton active={tab === 'places'} onClick={() => setTab('places')} icon={<MapPin size={19} />} label="Places & events" />
+          <NavButton active={tab === 'memories'} onClick={() => setTab('memories')} icon={<Camera size={19} />} label="Party Memories" />
           <NavButton active={tab === 'messages'} onClick={() => setTab('messages')} icon={<MessageCircle size={19} />} label="Messages" />
         </nav>
         <div className="sidebar-card">
@@ -310,7 +311,7 @@ function App() {
           <section className="quick-stats">
             <div className="stat"><span className="stat-icon"><Users size={17} /></span><span><b>{profiles.length}</b><small>people in your feed</small></span></div>
             <div className="stat"><span className="stat-icon"><CalendarDays size={17} /></span><span><b>Live</b><small>community meetups</small></span></div>
-            <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>{venues.length}</b><small>sample venues</small></span></div>
+            <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>Kenya</b><small>local venues</small></span></div>
             <div className="stat stat-note"><span className="online-avatars"><i>M</i><i>B</i><i>N</i></span><span><b>People are making plans</b><small>See what’s happening around you</small></span></div>
           </section>
 
@@ -318,6 +319,7 @@ function App() {
             <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
             <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups</button>
             <button role="tab" aria-selected={tab === 'places'} className={tab === 'places' ? 'selected' : ''} onClick={() => setTab('places')}>Places & events</button>
+            <button role="tab" aria-selected={tab === 'memories'} className={tab === 'memories' ? 'selected' : ''} onClick={() => setTab('memories')}>Party Memories</button>
           </div>
 
           {tab === 'discover' && <>
@@ -340,7 +342,9 @@ function App() {
 
           {tab === 'community' && <GoOutHub currentUserId={currentUser?.id ?? null} signedIn={authStatus === 'signed_in'} onSignIn={() => window.location.assign('/login')} />}
 
-          {tab === 'places' && <><div className="section-heading"><div><div className="eyebrow">EXPLORE YOUR CITY</div><h2>Places worth knowing</h2><p>Discover local venues and community events.</p></div><button className="filter-button" onClick={() => notify('Venue submissions will open soon.')}>List your venue <ArrowRight size={15} /></button></div><div className="venue-grid">{venues.map((venue) => <article className="venue-card" key={venue.name}><div className="venue-image" style={{ backgroundImage: `url(${venue.image})` }} /><div className="venue-content"><span>{venue.type}</span><h3>{venue.name}</h3><p><MapPin size={14} /> {venue.area}, Nairobi</p><button onClick={() => notify('Venue details will be available soon.')}>Explore venue <ArrowRight size={14} /></button></div></article>)}</div><div className="venue-cta"><div><span className="eyebrow">FOR LOCAL BUSINESSES</span><h3>Bring your venue to the community.</h3><p>Get discovered by people looking for somewhere to meet.</p></div><button className="primary-button" onClick={() => notify('Venue registration is coming soon.')}>Register your venue <ArrowRight size={15} /></button></div></>}
+          {tab === 'places' && <VenueHub signedIn={authStatus === 'signed_in'} />}
+
+          {tab === 'memories' && <MemoriesHub signedIn={authStatus === 'signed_in'} />}
 
           {tab === 'messages' && (authStatus === 'signed_in' ? <Messaging currentUserId={currentUser?.id ?? ''} /> : <div className="empty-state messages-empty"><MessageCircle size={28} /><h2>Sign in to view your messages.</h2><p>Your conversations are private and available after you sign in.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in <ArrowRight size={15} /></button></div>)}
 
@@ -364,7 +368,7 @@ function App() {
       </form></div></div>}
 
       {toast && <div className="toast"><Check size={16} /> {toast}</div>}
-      <div className="mobile-nav"><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('community')} className={tab === 'community' ? 'active' : ''}><CalendarDays size={19} /><span>Let's Go Out</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
+      <div className="mobile-nav"><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('community')} className={tab === 'community' ? 'active' : ''}><CalendarDays size={19} /><span>Let's Go Out</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('memories')} className={tab === 'memories' ? 'active' : ''}><Camera size={19} /><span>Memories</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
     </div>
   )
 }

@@ -550,3 +550,156 @@ export const squadMessages = pgTable('squad_messages', {
 }, (table) => [
   index('squad_messages_squad_created_idx').on(table.squadId, table.createdAt),
 ])
+
+
+// M5 — shared event memories and consent-based tagging.
+export const memoryAlbums = pgTable('memory_albums', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  creatorId: uuid('creator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  meetupId: uuid('meetup_id').references(() => meetups.id, { onDelete: 'cascade' }),
+  squadId: uuid('squad_id').references(() => squads.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 100 }).notNull(),
+  description: varchar('description', { length: 500 }),
+  visibility: varchar('visibility', { length: 16 }).notNull().default('members'),
+  ...timestamps,
+}, (table) => [
+  index('memory_albums_creator_idx').on(table.creatorId, table.createdAt),
+  index('memory_albums_meetup_idx').on(table.meetupId),
+  index('memory_albums_squad_idx').on(table.squadId),
+])
+
+export const memoryMedia = pgTable('memory_media', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').notNull().references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  uploaderId: uuid('uploader_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storageKey: varchar('storage_key', { length: 180 }).notNull(),
+  mimeType: varchar('mime_type', { length: 80 }).notNull(),
+  mediaKind: varchar('media_kind', { length: 12 }).notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  caption: varchar('caption', { length: 500 }),
+  moderationStatus: varchar('moderation_status', { length: 16 }).notNull().default('approved'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_media_storage_key_uq').on(table.storageKey),
+  index('memory_media_album_created_idx').on(table.albumId, table.createdAt),
+  index('memory_media_uploader_idx').on(table.uploaderId, table.createdAt),
+  index('memory_media_moderation_idx').on(table.moderationStatus, table.createdAt),
+])
+
+export const memoryTags = pgTable('memory_tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  mediaId: uuid('media_id').notNull().references(() => memoryMedia.id, { onDelete: 'cascade' }),
+  taggedUserId: uuid('tagged_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  taggedById: uuid('tagged_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: varchar('status', { length: 16 }).notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_tags_media_user_uq').on(table.mediaId, table.taggedUserId),
+  index('memory_tags_user_status_idx').on(table.taggedUserId, table.status),
+])
+
+// M6 — venue teams, offers, enquiries, promotions and measurable engagement.
+export const venueStaff = pgTable('venue_staff', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 16 }).notNull().default('staff'),
+  status: varchar('status', { length: 16 }).notNull().default('invited'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('venue_staff_venue_user_uq').on(table.venueId, table.userId),
+  index('venue_staff_user_idx').on(table.userId),
+])
+
+export const venuePhotos = pgTable('venue_photos', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  uploadedById: uuid('uploaded_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storageKey: varchar('storage_key', { length: 180 }).notNull(),
+  mimeType: varchar('mime_type', { length: 80 }).notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  caption: varchar('caption', { length: 240 }),
+  status: varchar('status', { length: 16 }).notNull().default('approved'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('venue_photos_storage_key_uq').on(table.storageKey),
+  index('venue_photos_venue_created_idx').on(table.venueId, table.createdAt),
+])
+
+export const venueDeals = pgTable('venue_deals', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  createdById: uuid('created_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 120 }).notNull(),
+  description: varchar('description', { length: 1000 }).notNull(),
+  dealType: varchar('deal_type', { length: 24 }).notNull(),
+  discountLabel: varchar('discount_label', { length: 60 }),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  maxRedemptions: integer('max_redemptions'),
+  status: varchar('status', { length: 16 }).notNull().default('draft'),
+  ...timestamps,
+}, (table) => [
+  index('venue_deals_venue_status_idx').on(table.venueId, table.status, table.startsAt),
+  index('venue_deals_ends_idx').on(table.endsAt),
+])
+
+export const venueDealClaims = pgTable('venue_deal_claims', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  dealId: uuid('deal_id').notNull().references(() => venueDeals.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  claimCode: varchar('claim_code', { length: 24 }).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('claimed'),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
+  redeemedAt: timestamp('redeemed_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('venue_deal_claims_deal_user_uq').on(table.dealId, table.userId),
+  uniqueIndex('venue_deal_claims_code_uq').on(table.claimCode),
+  index('venue_deal_claims_user_idx').on(table.userId, table.claimedAt),
+])
+
+export const venueEnquiries = pgTable('venue_enquiries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  name: varchar('name', { length: 100 }).notNull(),
+  email: varchar('email', { length: 320 }).notNull(),
+  phone: varchar('phone', { length: 24 }),
+  subject: varchar('subject', { length: 120 }).notNull(),
+  message: varchar('message', { length: 2000 }).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('new'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('venue_enquiries_venue_status_idx').on(table.venueId, table.status, table.createdAt),
+])
+
+export const venueEvents = pgTable('venue_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  eventType: varchar('event_type', { length: 24 }).notNull(),
+  referenceId: uuid('reference_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('venue_events_venue_type_created_idx').on(table.venueId, table.eventType, table.createdAt),
+])
+
+export const venuePromotions = pgTable('venue_promotions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  venueId: uuid('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  requestedById: uuid('requested_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 120 }).notNull(),
+  placement: varchar('placement', { length: 24 }).notNull(),
+  budgetMinor: integer('budget_minor').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('KES'),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('pending'),
+  reviewedById: uuid('reviewed_by_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index('venue_promotions_status_idx').on(table.status, table.createdAt),
+  index('venue_promotions_venue_idx').on(table.venueId),
+])
