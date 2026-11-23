@@ -31,7 +31,6 @@ export const Route = createFileRoute('/api/auth/login')({
             id: users.id,
             passwordHash: users.passwordHash,
             status: users.status,
-            emailVerifiedAt: users.emailVerifiedAt,
             displayName: profiles.displayName,
           }).from(users).leftJoin(profiles, eq(profiles.userId, users.id))
             .where(eq(users.emailNormalized, email)).limit(1)
@@ -39,7 +38,7 @@ export const Route = createFileRoute('/api/auth/login')({
           if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) {
             return jsonError('Email or password is incorrect.', 401, 'INVALID_CREDENTIALS')
           }
-          if (user.status !== 'active' || !user.emailVerifiedAt) {
+          if (user.status !== 'active') {
             return jsonError('Verify your email before signing in.', 403, 'EMAIL_NOT_VERIFIED')
           }
 
