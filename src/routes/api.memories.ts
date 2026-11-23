@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryAlbums, memoryMedia, memoryTags, meetupMembers, meetups, profiles, squadMembers } from '../db/schema'
@@ -42,7 +42,7 @@ export const Route = createFileRoute('/api/memories')({
             allowed = Boolean(member)
           }
           if (!allowed) continue
-          const [mediaCount] = await db.select({ value: db.$count(memoryMedia, and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved'))) })
+          const [mediaCount] = await db.select({ value: count() }).from(memoryMedia).where(and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved')))
           visible.push({ ...album, mediaCount: mediaCount?.value ?? 0 })
         }
         const tags = await db.select({
