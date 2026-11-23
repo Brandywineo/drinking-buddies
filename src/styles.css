@@ -254,3 +254,5 @@ button{cursor:pointer}
 .calendar-item time{color:#d8f36a;font-size:9px;text-align:right}
 @media(max-width:900px){.squad-layout{grid-template-columns:1fr}.goout-card-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.goout-hero{align-items:flex-start;flex-direction:column}.goout-form-grid{grid-template-columns:1fr}.squad-invite{flex-direction:column}.calendar-item{align-items:flex-start;flex-wrap:wrap}.calendar-item time{width:100%;text-align:left}.mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr))}.mobile-nav button span{font-size:8px}}
+
+.person-card{touch-action:pan-y;user-select:none}.person-card:active{cursor:grabbing}
