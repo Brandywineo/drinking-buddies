@@ -58,7 +58,7 @@ export const Route = createFileRoute('/api/host/subscription/checkout')({
           })
           await db.update(payments).set({
             providerReference: stk.checkoutRequestId,
-            metadata: { purpose: 'host_subscription', phone, billingInterval: interval, plan: parsed.data.plan, checkoutRequestId: stk.checkoutRequestId, merchantRequestId: stk.merchantRequestId, initiatedAt: new Date().toISOString() },
+            metadata: { purpose: 'host_subscription', phone, billingInterval: interval, plan: parsed.data.plan, checkoutRequestId: stk.checkoutRequestId, merchantRequestId: stk.merchantRequestId, environment: stk.environment, initiatedAt: new Date().toISOString() },
             updatedAt: new Date(),
           }).where(eq(payments.id, payment.id))
           return jsonOk({ paymentId: payment.id, status: 'pending', checkoutRequestId: stk.checkoutRequestId, customerMessage: stk.customerMessage }, 201)

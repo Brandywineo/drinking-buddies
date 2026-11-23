@@ -54,7 +54,7 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
           return Response.json({ ResultCode: 0, ResultDesc: 'Accepted' })
         }
 
-        const query = await queryStkPush(checkoutId)
+        const query = await queryStkPush(checkoutId, payment.metadata.environment === 'production' ? 'production' : 'sandbox')
         if (String(query.ResultCode) !== '0' || String(query.CheckoutRequestID ?? checkoutId) !== checkoutId) {
           await db.update(paymentWebhookEvents).set({ processingError: 'STK query did not confirm successful payment' }).where(eq(paymentWebhookEvents.id, event.id))
           return Response.json({ ResultCode: 0, ResultDesc: 'Accepted for reconciliation' })

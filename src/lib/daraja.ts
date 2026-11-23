@@ -33,11 +33,11 @@ function required(value: string, label: string) {
   return value.trim()
 }
 
-export async function getDarajaConfig(): Promise<DarajaConfig> {
+export async function getDarajaConfig(environmentOverride?: 'sandbox' | 'production'): Promise<DarajaConfig> {
   const [setting] = await getDb().select({ value: platformSettings.value }).from(platformSettings).where(eq(platformSettings.key, 'mpesa_settings')).limit(1)
   const value = setting?.value && typeof setting.value === 'object' ? setting.value as Record<string, unknown> : {}
   const configuredEnvironment = value.environment === 'production' ? 'production' : value.environment === 'sandbox' ? 'sandbox' : process.env.MPESA_ENV === 'production' ? 'production' : 'sandbox'
-  const environment = configuredEnvironment
+  const environment = environmentOverride ?? configuredEnvironment
   const secrets = await getMpesaSecrets()
   return {
     environment,
@@ -84,8 +84,8 @@ async function accessToken(config: DarajaConfig) {
   return payload.access_token
 }
 
-async function postDaraja(path: string, body: Record<string, unknown>) {
-  const config = await getDarajaConfig()
+async function postDaraja(path: string, body: Record<string, unknown>, environmentOverride?: 'sandbox' | 'production') {
+  const config = await getDarajaConfig(environmentOverride)
   const token = await accessToken(config)
   const response = await fetch(`${config.baseUrl}${path}`, {
     method: 'POST',
@@ -129,16 +129,17 @@ export async function initiateStkPush(input: { phone: string; amountMinor: numbe
   return {
     checkoutRequestId: result.CheckoutRequestID, merchantRequestId: result.MerchantRequestID,
     customerMessage: typeof result.CustomerMessage === 'string' ? result.CustomerMessage : 'Check your phone to complete M-PESA payment.',
+    environment: config.environment,
   }
 }
 
-export async function queryStkPush(checkoutRequestId: string) {
-  const config = await getDarajaConfig()
+export async function queryStkPush(checkoutRequestId: string, environment?: 'sandbox' | 'production') {
+  const config = await getDarajaConfig(environment)
   const timestamp = darajaTimestamp()
   const password = Buffer.from(`${config.shortcode}${config.passkey}${timestamp}`).toString('base64')
   return postDaraja('/mpesa/stkpushquery/v1/query', {
     BusinessShortCode: config.shortcode, Password: password, Timestamp: timestamp, CheckoutRequestID: checkoutRequestId,
-  })
+  }, config.environment)
 }
 
 export async function initiateB2CPayout(input: { phone: string; amountMinor: number; reference: string }) {

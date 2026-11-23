@@ -24,6 +24,6 @@ if(pending&&typeof pending.metadata.checkoutRequestId==='string')return jsonOk({
 const [payment]=await db.insert(payments).values({userId,consumerSubscriptionId:sub.id,provider:'daraja',amountMinor,currency:'KES',status:'pending',idempotencyKey:'consumer-membership:'+sub.id+':'+crypto.randomUUID(),metadata:{purpose:'consumer_subscription',phone,billingInterval:interval,plan:parsed.data.plan}}).returning()
 if(!payment)return jsonError('Could not create payment.',500,'PAYMENT_CREATE_FAILED')
 const stk=await initiateStkPush({phone,amountMinor,accountReference:'DBPLUS'+sub.id.replace(/-/g,'').slice(0,8),description:'Consumer Plus membership'})
-await db.update(payments).set({providerReference:stk.checkoutRequestId,metadata:{purpose:'consumer_subscription',phone,billingInterval:interval,plan:parsed.data.plan,checkoutRequestId:stk.checkoutRequestId,merchantRequestId:stk.merchantRequestId},updatedAt:new Date()}).where(eq(payments.id,payment.id))
+await db.update(payments).set({providerReference:stk.checkoutRequestId,metadata:{purpose:'consumer_subscription',phone,billingInterval:interval,plan:parsed.data.plan,checkoutRequestId:stk.checkoutRequestId,merchantRequestId:stk.merchantRequestId,environment:stk.environment},updatedAt:new Date()}).where(eq(payments.id,payment.id))
 return jsonOk({paymentId:payment.id,status:'pending',customerMessage:stk.customerMessage},201)
 }catch(error){console.error('Consumer Plus checkout failed',error);return jsonError('We could not start Consumer Plus checkout.',502,'MEMBERSHIP_CHECKOUT_FAILED')}}}}})
