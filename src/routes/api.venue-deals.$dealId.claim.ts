@@ -17,7 +17,7 @@ export const Route = createFileRoute('/api/venue-deals/$dealId/claim')({
         if (!id.success) return jsonError('Invalid deal.', 400, 'INVALID_DEAL')
         const result = await getDb().transaction(async (tx) => {
           const [deal] = await tx.select().from(venueDeals).where(eq(venueDeals.id, id.data)).for('update').limit(1)
-          if (!deal || deal.status !== 'active' || deal.startsAt > new Date() || deal.endsAt <= new Date()) return { error: 'This deal is not currently available.' }
+          if (!deal || deal.status !== 'published' || deal.startsAt > new Date() || deal.endsAt <= new Date()) return { error: 'This deal is not currently available.' }
           const [venue] = await tx.select({ id: venues.id, approvalStatus: venues.approvalStatus, isPublished: venues.isPublished }).from(venues).where(eq(venues.id, deal.venueId)).limit(1)
           if (!venue || venue.approvalStatus !== 'approved' || !venue.isPublished) return { error: 'This venue is not available.' }
           const [existing] = await tx.select({ id: venueDealClaims.id }).from(venueDealClaims).where(and(
@@ -32,7 +32,7 @@ export const Route = createFileRoute('/api/venue-deals/$dealId/claim')({
           const [claim] = await tx.insert(venueDealClaims).values({ dealId: deal.id, userId, claimCode: code }).returning({
             id: venueDealClaims.id, claimCode: venueDealClaims.claimCode, claimedAt: venueDealClaims.claimedAt,
           })
-          await tx.insert(venueEvents).values({ venueId: deal.venueId, userId, eventType: 'claim', referenceId: deal.id })
+          await tx.insert(venueEvents).values({ venueId: deal.venueId, userId, eventType: 'deal_claim', referenceId: deal.id })
           return { claim }
         })
         if ('error' in result) return jsonError(result.error, 409, 'DEAL_CLAIM_UNAVAILABLE')
