@@ -64,6 +64,13 @@
       "when": 1795564800005,
       "tag": "0008_host_membership_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795651200006,
+      "tag": "0009_meetup_cover_images",
+      "breakpoints": true
     }
   ]
 }
