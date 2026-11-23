@@ -47,7 +47,7 @@ export const Route = createFileRoute('/api/venues/$venueId/deals')({
         const parsed = schema.safeParse(raw)
         if (!parsed.success) return jsonError('Check the deal details and dates.', 400, 'INVALID_DEAL')
         const [deal] = await getDb().insert(venueDeals).values({
-          venueId: id.data, createdById: userId, ...parsed.data, discountLabel: parsed.data.discountLabel ?? null,
+          venueId: id.data, createdById: userId, ...parsed.data, startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), discountLabel: parsed.data.discountLabel ?? null,
           maxRedemptions: parsed.data.maxRedemptions ?? null, status: 'published',
         }).returning()
         return jsonOk({ deal }, 201)
