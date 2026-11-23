@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../../db'
-import { profiles, squadMembers, squadMessages } from '../../../db/schema'
-import { getAuthenticatedUserId } from '../../../lib/session'
-import { jsonError, jsonOk } from '../../../lib/http'
+import { getDb } from '../db'
+import { profiles, squadMembers, squadMessages } from '../db/schema'
+import { getAuthenticatedUserId } from '../lib/session'
+import { jsonError, jsonOk } from '../lib/http'
 
 const paramsSchema = z.object({ squadId: z.string().uuid() })
 const messageSchema = z.object({ body: z.string().trim().min(1).max(2000) }).strict()
