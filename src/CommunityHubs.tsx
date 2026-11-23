@@ -2,13 +2,15 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Camera, MapPin, Plus, Upload, X } from 'lucide-react'
 
 type Venue = { id: string; name: string; description: string | null; category: string; address: string; area: string; city: string; websiteUrl: string | null; coverPhotoUrl?: string | null }
-type OwnedVenue = { id:string; name:string; approvalStatus:string; isPublished:boolean; area:string; city:string; createdAt:string }\ntype Album = { id: string; title: string; description: string | null; visibility: string; mediaCount: number; creatorName: string | null }
+type OwnedVenue = { id:string; name:string; approvalStatus:string; isPublished:boolean; area:string; city:string; createdAt:string }
+type Album = { id: string; title: string; description: string | null; visibility: string; mediaCount: number; creatorName: string | null }
 type Media = { id: string; mediaKind: string; caption: string | null; url: string; uploaderName: string | null }
 
 function Notice({ value }: { value: string }) { return value ? <p className="hub-notice" role="status">{value}</p> : null }
 
 export function VenueHub({ signedIn }: { signedIn: boolean }) {
-  const [venues, setVenues] = useState<Venue[]>([])\n  const [ownedVenues, setOwnedVenues] = useState<OwnedVenue[]>([])
+  const [venues, setVenues] = useState<Venue[]>([])
+  const [ownedVenues, setOwnedVenues] = useState<OwnedVenue[]>([])
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Venue | null>(null)
   const [notice, setNotice] = useState('')
@@ -24,7 +26,9 @@ export function VenueHub({ signedIn }: { signedIn: boolean }) {
     const result = await response.json()
     if (response.ok) setVenues(result.data?.venues ?? [])
   }
-  useEffect(() => { void load(); if (signedIn) void loadOwned() }, [signedIn])\n  async function loadOwned() { const response=await fetch('/api/venues/mine',{credentials:'include'}); const result=await response.json(); if(response.ok)setOwnedVenues(result.data?.venues??[]) }\n  async function uploadVenuePhotos(venueId:string, files:FileList|null) { if(!files?.length)return; let failed=0; for(const file of Array.from(files).slice(0,12)){const body=new FormData();body.set('file',file);const response=await fetch('/api/venues/'+venueId+'/photos',{method:'POST',body});if(!response.ok)failed++} setNotice(failed?'Some photos could not be submitted. Please retry those files.':'Photos submitted for moderation. They appear publicly after approval.'); }
+  useEffect(() => { void load(); if (signedIn) void loadOwned() }, [signedIn])
+  async function loadOwned() { const response=await fetch('/api/venues/mine',{credentials:'include'}); const result=await response.json(); if(response.ok)setOwnedVenues(result.data?.venues??[]) }
+  async function uploadVenuePhotos(venueId:string, files:FileList|null) { if(!files?.length)return; let failed=0; for(const file of Array.from(files).slice(0,12)){const body=new FormData();body.set('file',file);const response=await fetch('/api/venues/'+venueId+'/photos',{method:'POST',body});if(!response.ok)failed++} setNotice(failed?'Some photos could not be submitted. Please retry those files.':'Photos submitted for moderation. They appear publicly after approval.'); }
   async function submitVenue(event: FormEvent) {
     event.preventDefault(); setNotice('')
     const response = await fetch('/api/venues', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
