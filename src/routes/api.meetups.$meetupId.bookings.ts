@@ -64,6 +64,13 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
           }
 
           const now = new Date()
+          const [activeBooking] = await tx.select().from(meetupBookings).where(and(
+            eq(meetupBookings.meetupId, meetup.id),
+            eq(meetupBookings.attendeeId, attendeeId),
+            eq(meetupBookings.status, 'pending_payment'),
+            gt(meetupBookings.expiresAt, now),
+          )).orderBy(desc(meetupBookings.createdAt)).limit(1)
+          if (activeBooking) return { booking: activeBooking, reused: true }
           const [approvedMembers] = await tx.select({ value: sql<number>`count(*)::int` }).from(meetupMembers).where(and(
             eq(meetupMembers.meetupId, meetup.id),
             eq(meetupMembers.status, 'approved'),
