@@ -76,6 +76,9 @@ export const Route = createFileRoute('/api/meetups')({
         if ((parsed.data.pricingType === 'free' && parsed.data.priceMinor !== 0) || (parsed.data.pricingType === 'paid' && (parsed.data.priceMinor <= 0 || parsed.data.priceMinor % 100 !== 0))) {
           return jsonError('Free meetups must have a zero price; paid meetups need a whole-KES price.', 400, 'INVALID_MEETUP_PRICE')
         }
+        if (parsed.data.pricingType === 'paid' && parsed.data.visibility !== 'public') {
+          return jsonError('Paid meetups must allow open joining so successful payment can confirm entry immediately.', 400, 'PAID_MEETUP_MUST_BE_PUBLIC')
+        }
         if (startsAt <= new Date() || (endsAt && endsAt <= startsAt)) {
           return jsonError('Choose a future start time and an end time after it.', 400, 'INVALID_MEETUP_TIME')
         }
