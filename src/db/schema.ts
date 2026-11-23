@@ -58,6 +58,7 @@ export const profiles = pgTable('profiles', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   displayName: varchar('display_name', { length: 48 }).notNull(),
+  avatarUrl: varchar('avatar_url', { length: 500),
   bio: varchar('bio', { length: 500 }),
   gender: varchar('gender', { length: 32 }),
   discoverable: boolean('discoverable').notNull().default(true),

@@ -22,7 +22,7 @@ export const Route = createFileRoute('/api/discovery')({
 
       const intentFilter = parsed.data.mode === 'friendship' ? 'friendship' : parsed.data.mode === 'dating' ? 'social_and_dating' : null
       const candidates = await db.select({
-        id: users.id, displayName: profiles.displayName, bio: profiles.bio, gender: profiles.gender,
+        id: users.id, displayName: profiles.displayName, avatarUrl: sql<string | null>`CASE WHEN ${profiles.avatarUrl} IS NOT NULL THEN '/api/profile/photo/' || ${users.id}::text ELSE NULL END`, bio: profiles.bio, gender: profiles.gender,
         preferredGenders: profiles.preferredGenders, interests: profiles.interests,
         connectionIntents: profiles.connectionIntents, homeArea: profiles.homeArea,
         locationVisibility: profiles.locationVisibility,

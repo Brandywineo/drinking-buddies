@@ -29,7 +29,7 @@ export const Route = createFileRoute('/api/profile')({
         if (!userId) return jsonError('Sign in to view your profile.', 401, 'UNAUTHENTICATED')
         const [profile] = await getDb().select().from(profiles).where(eq(profiles.userId, userId)).limit(1)
         const stats = profile ? await getProfileStats(userId) : null
-        return jsonOk({ profile: profile ?? null, stats })
+        return jsonOk({ profile: profile ? { ...profile, avatarUrl: profile.avatarUrl ? `/api/profile/photo/${userId}` : null } : null, stats })
       } catch (error) {
         console.error('Profile lookup failed', error)
         return jsonError('We could not load your profile.', 500, 'PROFILE_LOOKUP_FAILED')
@@ -47,7 +47,7 @@ export const Route = createFileRoute('/api/profile')({
           .onConflictDoUpdate({ target: profiles.userId, set: { ...parsed.data, updatedAt: new Date() } })
           .returning()
         const stats = await getProfileStats(userId)
-        return jsonOk({ profile, stats })
+        return jsonOk({ profile: profile ? { ...profile, avatarUrl: profile.avatarUrl ? `/api/profile/photo/${userId}` : null } : null, stats })
       } catch (error) {
         console.error('Profile update failed', error)
         return jsonError('We could not save your profile.', 500, 'PROFILE_UPDATE_FAILED')
