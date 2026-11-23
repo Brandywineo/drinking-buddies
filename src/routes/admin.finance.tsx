@@ -8,6 +8,8 @@ type FinanceSettings = {
   hostTrialDays: number
   hostMonthlyPriceMinor: number
   hostAnnualPriceMinor: number
+  consumerMonthlyPriceMinor: number
+  consumerAnnualPriceMinor: number
 }
 type Payout = { id: string; email: string; displayName: string | null; amountMinor: number; status: string; destinationReference: string | null; currency: string }
 type ReconciliationEvent = { id: string; provider: string; providerEventId: string; eventType: string; processedAt: string | null; processingError: string | null; createdAt: string }
@@ -15,7 +17,7 @@ type Refund = { id: string; attendeeEmail: string; attendeeName: string | null; 
 
 const defaults: FinanceSettings = {
   commissionBps: 1000, minimumPayoutMinor: 10000, payoutReleaseHours: 24,
-  hostTrialDays: 14, hostMonthlyPriceMinor: 0, hostAnnualPriceMinor: 0,
+  hostTrialDays: 14, hostMonthlyPriceMinor: 0, hostAnnualPriceMinor: 0, consumerMonthlyPriceMinor: 0, consumerAnnualPriceMinor: 0,
 }
 const money = (minor: number, currency = 'KES') => new Intl.NumberFormat('en-KE', { style: 'currency', currency }).format(minor / 100)
 
@@ -116,6 +118,8 @@ function AdminFinancePage() {
         {field('Host free trial', 'hostTrialDays', 'days')}
         {field('Monthly host membership', 'hostMonthlyPriceMinor', 'minor units')}
         {field('Annual host membership', 'hostAnnualPriceMinor', 'minor units')}
+        {field('Monthly Consumer Plus', 'consumerMonthlyPriceMinor', 'minor units')}
+        {field('Annual Consumer Plus', 'consumerAnnualPriceMinor', 'minor units')}
         <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
           <button disabled={saving} className="rounded-lg bg-lime-300 px-5 py-2.5 font-semibold text-black disabled:opacity-50">{saving ? 'Saving…' : 'Save finance settings'}</button>
         </div>
