@@ -1,10 +1,10 @@
 import { and, count, eq, isNull, or } from 'drizzle-orm'
 import { getDb } from '../db'
-import { matches, meetupBookings, meetupMembers, meetups, profileLikes } from '../db/schema'
+import { favoriteProfiles, favoriteVenues, matches, meetupBookings, meetupMembers, meetups, profileLikes } from '../db/schema'
 
 export async function getProfileStats(userId: string) {
   const db = getDb()
-  const [[hosted], [joined], [attended], [receivedLikes], [activeMatches]] = await Promise.all([
+  const [[hosted], [joined], [attended], [receivedLikes], [activeMatches], [favoriteHosts], [favoritePlaces]] = await Promise.all([
     db.select({ value: count() }).from(meetups).where(eq(meetups.hostId, userId)),
     db.select({ value: count() }).from(meetupMembers).where(and(
       eq(meetupMembers.userId, userId), eq(meetupMembers.status, 'approved'),
@@ -17,6 +17,8 @@ export async function getProfileStats(userId: string) {
       isNull(matches.endedAt),
       or(eq(matches.userLowId, userId), eq(matches.userHighId, userId)),
     )),
+    db.select({ value: count() }).from(favoriteProfiles).where(eq(favoriteProfiles.userId, userId)),
+    db.select({ value: count() }).from(favoriteVenues).where(eq(favoriteVenues.userId, userId)),
   ])
   const stats = {
     hostedMeetups: Number(hosted?.value ?? 0),
@@ -24,6 +26,8 @@ export async function getProfileStats(userId: string) {
     attendedMeetups: Number(attended?.value ?? 0),
     receivedLikes: Number(receivedLikes?.value ?? 0),
     activeMatches: Number(activeMatches?.value ?? 0),
+    favoriteHosts: Number(favoriteHosts?.value ?? 0),
+    favoritePlaces: Number(favoritePlaces?.value ?? 0),
   }
   // Transparent activity-based indicators; these are not reviews or identity verification.
   return {
