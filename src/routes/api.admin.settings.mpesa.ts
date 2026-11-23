@@ -73,6 +73,9 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
       }
 
       const db = getDb()
+      const [current] = await db.select({ value: platformSettings.value }).from(platformSettings)
+        .where(eq(platformSettings.key, 'mpesa_settings')).limit(1)
+      const currentValue = current?.value && typeof current.value === 'object' ? current.value as Record<string, unknown> : {}
       let secrets = await getMpesaSecrets()
       if (parsed.data.credentials) {
         const updates = parsed.data.credentials
@@ -85,21 +88,20 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
           secrets.callbackUrl = appUrl ? new URL('/api/webhooks/daraja', appUrl).toString() : ''
         }
         if (!secrets.callbackToken) secrets.callbackToken = createOpaqueToken(32)
-        if (secrets.callbackUrl && !secrets.callbackUrl.startsWith('https://')) {
-          return jsonError('Daraja callback URLs must use HTTPS.', 400, 'HTTPS_REQUIRED')
-        }
-        const encrypted = encryptMpesaSecrets(secrets)
-        await db.insert(platformSettings).values({ key: 'mpesa_credentials', value: { encrypted, version: 1 }, updatedBy: adminId })
-          .onConflictDoUpdate({ target: platformSettings.key, set: { value: { encrypted, version: 1 }, updatedBy: adminId, updatedAt: new Date() } })
       }
-
-      const [current] = await db.select({ value: platformSettings.value }).from(platformSettings)
-        .where(eq(platformSettings.key, 'mpesa_settings')).limit(1)
-      const currentValue = current?.value && typeof current.value === 'object' ? current.value as Record<string, unknown> : {}
+      if (secrets.callbackUrl && !secrets.callbackUrl.startsWith('https://')) {
+        return jsonError('Daraja callback URLs must use HTTPS.', 400, 'HTTPS_REQUIRED')
+      }
       const enabled = parsed.data.enabled ?? currentValue.enabled === true
       const status = statusFor(secrets)
       if (enabled && !status.ready) {
         return jsonError('M-Pesa checkout cannot be enabled until the sandbox credentials and secure HTTPS callback settings are complete.', 409, 'MPESA_NOT_READY')
+      }
+
+      if (parsed.data.credentials) {
+        const encrypted = encryptMpesaSecrets(secrets)
+        await db.insert(platformSettings).values({ key: 'mpesa_credentials', value: { encrypted, version: 1 }, updatedBy: adminId })
+          .onConflictDoUpdate({ target: platformSettings.key, set: { value: { encrypted, version: 1 }, updatedBy: adminId, updatedAt: new Date() } })
       }
       const value = { enabled }
       await db.insert(platformSettings).values({ key: 'mpesa_settings', value, updatedBy: adminId })
