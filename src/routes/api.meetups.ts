@@ -9,6 +9,7 @@ import { jsonError, jsonOk } from '../lib/http'
 const createSchema = z.object({
   title: z.string().trim().min(4).max(100),
   description: z.string().trim().max(1200).nullable().optional(),
+  coverImageUrl: z.string().startsWith('/api/meetup-covers/').max(500).nullable().optional(),
   startsAt: z.string().datetime({ offset: true }),
   endsAt: z.string().datetime({ offset: true }).nullable().optional(),
   area: z.string().trim().min(2).max(160),
@@ -16,7 +17,7 @@ const createSchema = z.object({
   visibility: z.enum(['public', 'approval_required']).default('approval_required'),
   pricingType: z.enum(['free', 'paid']).default('free'),
   priceMinor: z.number().int().min(0).max(100000000).default(0),
-  currency: z.string().regex(/^[A-Z]{3}$/).default('KES'),
+  currency: z.literal('KES').default('KES'),
   refundPolicy: z.object({
     kind: z.literal('host_policy'),
     refundBeforeHours: z.number().int().min(0).max(720),
@@ -31,7 +32,7 @@ export const Route = createFileRoute('/api/meetups')({
         const userId = await getAuthenticatedUserId(request)
         const db = getDb()
         const rows = await db.select({
-          id: meetups.id, title: meetups.title, description: meetups.description,
+          id: meetups.id, title: meetups.title, description: meetups.description, coverImageUrl: meetups.coverImageUrl,
           startsAt: meetups.startsAt, endsAt: meetups.endsAt, area: meetups.area,
           capacity: meetups.capacity, visibility: meetups.visibility, hostId: meetups.hostId,
           pricingType: meetups.pricingType, priceMinor: meetups.priceMinor, currency: meetups.currency, refundPolicy: meetups.refundPolicy,
@@ -72,8 +73,8 @@ export const Route = createFileRoute('/api/meetups')({
         if (!parsed.success) return jsonError('Check the meetup details and try again.', 400, 'INVALID_MEETUP')
         const startsAt = new Date(parsed.data.startsAt)
         const endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null
-        if ((parsed.data.pricingType === 'free' && parsed.data.priceMinor !== 0) || (parsed.data.pricingType === 'paid' && parsed.data.priceMinor <= 0)) {
-          return jsonError('Free meetups must have a zero price; paid meetups need a positive price.', 400, 'INVALID_MEETUP_PRICE')
+        if ((parsed.data.pricingType === 'free' && parsed.data.priceMinor !== 0) || (parsed.data.pricingType === 'paid' && (parsed.data.priceMinor <= 0 || parsed.data.priceMinor % 100 !== 0))) {
+          return jsonError('Free meetups must have a zero price; paid meetups need a whole-KES price.', 400, 'INVALID_MEETUP_PRICE')
         }
         if (startsAt <= new Date() || (endsAt && endsAt <= startsAt)) {
           return jsonError('Choose a future start time and an end time after it.', 400, 'INVALID_MEETUP_TIME')
@@ -113,7 +114,7 @@ export const Route = createFileRoute('/api/meetups')({
             startsAt, endsAt, area: parsed.data.area, capacity: parsed.data.capacity,
             visibility: parsed.data.visibility, status: 'published',
             pricingType: parsed.data.pricingType, priceMinor: parsed.data.priceMinor,
-            currency: parsed.data.currency, refundPolicy: parsed.data.refundPolicy,
+            currency: 'KES', coverImageUrl: parsed.data.coverImageUrl ?? null, refundPolicy: parsed.data.refundPolicy,
           }).returning()
           await tx.insert(meetupMembers).values({ meetupId: meetup.id, userId, status: 'approved', joinedAt: new Date() })
           const [conversation] = await tx.insert(conversations).values({ kind: 'meetup', meetupId: meetup.id }).returning()
