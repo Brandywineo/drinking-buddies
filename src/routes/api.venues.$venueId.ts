@@ -39,7 +39,7 @@ export const Route = createFileRoute('/api/venues/$venueId')({
           db.select({ id: venuePhotos.id, caption: venuePhotos.caption, createdAt: venuePhotos.createdAt })
             .from(venuePhotos).where(and(eq(venuePhotos.venueId, venue.id), eq(venuePhotos.status, 'approved'))).orderBy(desc(venuePhotos.createdAt)).limit(30),
           db.select({ id: venueDeals.id, title: venueDeals.title, description: venueDeals.description, dealType: venueDeals.dealType, discountLabel: venueDeals.discountLabel, startsAt: venueDeals.startsAt, endsAt: venueDeals.endsAt })
-            .from(venueDeals).where(and(eq(venueDeals.venueId, venue.id), eq(venueDeals.status, 'active'))).orderBy(desc(venueDeals.createdAt)).limit(30),
+            .from(venueDeals).where(and(eq(venueDeals.venueId, venue.id), eq(venueDeals.status, 'published'))).orderBy(desc(venueDeals.createdAt)).limit(30),
         ])
         const userId = await getAuthenticatedUserId(request)
         if (userId) await db.insert(venueEvents).values({ venueId: venue.id, userId, eventType: 'view' })
