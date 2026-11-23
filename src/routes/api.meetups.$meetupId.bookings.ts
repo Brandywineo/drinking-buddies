@@ -1,14 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, count, eq, gt, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { meetupBookings, meetupMembers, meetups, platformSettings } from '../db/schema'
+import { meetupBookings, meetupMembers, meetups, payments, platformSettings } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
+import { getDarajaConfig, initiateStkPush, normalizeMpesaPhone } from '../lib/daraja'
+import { withDarajaCallbackToken } from '../lib/daraja-callback-auth'
 
 const paramsSchema = z.object({ meetupId: z.string().uuid() })
 const bodySchema = z.object({
   quantity: z.number().int().min(1).max(20).default(1),
+  phone: z.string().trim().min(9).max(20),
   idempotencyKey: z.string().trim().min(8).max(120),
 }).strict()
 
@@ -25,28 +28,51 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
         let rawBody: unknown
         try { rawBody = await request.json() } catch { return jsonError('Request body must be valid JSON.', 400, 'INVALID_JSON') }
         const parsedBody = bodySchema.safeParse(rawBody)
-        if (!parsedBody.success) return jsonError('Check the booking quantity and idempotency key.', 400, 'INVALID_BOOKING')
+        if (!parsedBody.success) return jsonError('Enter a valid Kenyan M-PESA phone number and booking quantity.', 400, 'INVALID_BOOKING')
+        let phone: string
+        try { phone = normalizeMpesaPhone(parsedBody.data.phone) }
+        catch { return jsonError('Enter a valid Kenyan M-PESA phone number, e.g. 0712345678.', 400, 'INVALID_MPESA_PHONE') }
 
         const db = getDb()
-        const result = await db.transaction(async (tx) => {
+        const [mpesaSetting] = await db.select({ value: platformSettings.value }).from(platformSettings)
+          .where(eq(platformSettings.key, 'mpesa_settings')).limit(1)
+        const mpesaConfig = mpesaSetting?.value && typeof mpesaSetting.value === 'object'
+          ? mpesaSetting.value as Record<string, unknown> : {}
+        if (mpesaConfig.enabled !== true) return jsonError('M-PESA checkout is temporarily unavailable. Please try again later.', 503, 'MPESA_DISABLED')
+        if ((process.env.MPESA_ENV ?? 'sandbox') !== 'sandbox') return jsonError('Live M-PESA checkout is not enabled yet.', 503, 'MPESA_LIVE_DISABLED')
+        try {
+          getDarajaConfig()
+          withDarajaCallbackToken(process.env.MPESA_CALLBACK_URL ?? '')
+        } catch {
+          return jsonError('M-PESA configuration is incomplete. Please contact support.', 503, 'MPESA_NOT_CONFIGURED')
+        }
+
+        const reservation = await db.transaction(async (tx) => {
           await tx.execute(sql`SELECT id FROM meetups WHERE id = ${parsedParams.data.meetupId} FOR UPDATE`)
           const [meetup] = await tx.select().from(meetups).where(eq(meetups.id, parsedParams.data.meetupId)).limit(1)
           if (!meetup || meetup.status !== 'published' || meetup.startsAt <= new Date()) return { error: 'NOT_FOUND' as const }
           if (meetup.hostId === attendeeId) return { error: 'HOST' as const }
-          if (meetup.pricingType !== 'paid' || meetup.priceMinor <= 0) return { error: 'NOT_PAID' as const }
+          if (meetup.pricingType !== 'paid' || meetup.priceMinor <= 0 || meetup.currency !== 'KES') return { error: 'NOT_PAID' as const }
           if (meetup.visibility !== 'public') return { error: 'APPROVAL_REQUIRED' as const }
 
           const [existing] = await tx.select().from(meetupBookings)
             .where(eq(meetupBookings.idempotencyKey, parsedBody.data.idempotencyKey)).limit(1)
           if (existing) {
             if (existing.attendeeId !== attendeeId || existing.meetupId !== meetup.id) return { error: 'IDEMPOTENCY_CONFLICT' as const }
+            if (existing.status !== 'pending_payment' || existing.expiresAt <= new Date()) return { error: 'BOOKING_NOT_PAYABLE' as const }
             return { booking: existing, reused: true }
           }
 
           const now = new Date()
-          const [approvedMembers] = await tx.select({ value: count() }).from(meetupMembers).where(and(
+          const [approvedMembers] = await tx.select({ value: sql<number>`count(*)::int` }).from(meetupMembers).where(and(
             eq(meetupMembers.meetupId, meetup.id),
             eq(meetupMembers.status, 'approved'),
+            sql`NOT EXISTS (
+              SELECT 1 FROM meetup_bookings b
+              WHERE b.meetup_id = ${meetup.id}
+                AND b.attendee_id = ${meetupMembers.userId}
+                AND b.status = 'confirmed'
+            )`,
           ))
           const [occupied] = await tx.select({ value: sql<number>`coalesce(sum(quantity), 0)::int` }).from(meetupBookings).where(and(
             eq(meetupBookings.meetupId, meetup.id),
@@ -68,42 +94,81 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
           const hostNetMinor = grossAmountMinor - platformFeeMinor
           const expiresAt = new Date(now.getTime() + RESERVATION_MINUTES * 60 * 1000)
           const [booking] = await tx.insert(meetupBookings).values({
-            meetupId: meetup.id,
-            attendeeId,
-            hostId: meetup.hostId,
-            quantity: parsedBody.data.quantity,
-            unitPriceMinor: meetup.priceMinor,
-            grossAmountMinor,
-            currency: meetup.currency,
-            commissionBps,
-            platformFeeMinor,
-            processorFeeMinor: 0,
-            hostNetMinor,
-            status: 'pending_payment',
+            meetupId: meetup.id, attendeeId, hostId: meetup.hostId,
+            quantity: parsedBody.data.quantity, unitPriceMinor: meetup.priceMinor,
+            grossAmountMinor, currency: 'KES', commissionBps, platformFeeMinor,
+            processorFeeMinor: 0, hostNetMinor, status: 'pending_payment',
             idempotencyKey: parsedBody.data.idempotencyKey,
-            refundPolicySnapshot: meetup.refundPolicy,
-            expiresAt,
+            refundPolicySnapshot: meetup.refundPolicy, expiresAt,
           }).returning()
           return { booking, reused: false }
         })
 
-        if ('error' in result) {
-          if (result.error === 'NOT_FOUND') return jsonError('This meetup is unavailable.', 404, 'MEETUP_NOT_FOUND')
-          if (result.error === 'HOST') return jsonError('You cannot book your own meetup.', 409, 'HOST_CANNOT_BOOK')
-          if (result.error === 'NOT_PAID') return jsonError('This booking endpoint is only for paid meetups.', 409, 'MEETUP_NOT_PAID')
-          if (result.error === 'APPROVAL_REQUIRED') return jsonError('Paid bookings are not open for approval-required meetups yet.', 409, 'MEETUP_REQUIRES_APPROVAL')
-          if (result.error === 'IDEMPOTENCY_CONFLICT') return jsonError('That idempotency key is already in use.', 409, 'IDEMPOTENCY_CONFLICT')
+        if ('error' in reservation) {
+          if (reservation.error === 'NOT_FOUND') return jsonError('This meetup is unavailable.', 404, 'MEETUP_NOT_FOUND')
+          if (reservation.error === 'HOST') return jsonError('You cannot book your own meetup.', 409, 'HOST_CANNOT_BOOK')
+          if (reservation.error === 'NOT_PAID') return jsonError('This booking endpoint is only for paid KES meetups.', 409, 'MEETUP_NOT_PAID')
+          if (reservation.error === 'APPROVAL_REQUIRED') return jsonError('Paid meetups must use open joining so successful payment can confirm entry immediately.', 409, 'MEETUP_REQUIRES_PUBLIC_JOIN')
+          if (reservation.error === 'IDEMPOTENCY_CONFLICT') return jsonError('That idempotency key is already in use.', 409, 'IDEMPOTENCY_CONFLICT')
+          if (reservation.error === 'BOOKING_NOT_PAYABLE') return jsonError('This booking is no longer payable. Refresh the meetup and start a new booking.', 409, 'BOOKING_NOT_PAYABLE')
           return jsonError('There are not enough tickets remaining.', 409, 'MEETUP_CAPACITY_REACHED')
         }
 
-        return jsonOk({
-          booking: result.booking,
-          reused: result.reused,
-          payment: { enabled: false, reason: 'PAYMENT_PROVIDER_APPROVAL_PENDING' },
-        }, result.reused ? 200 : 201)
+        const paymentSetup = await db.transaction(async (tx) => {
+          await tx.execute(sql`SELECT id FROM meetup_bookings WHERE id = ${reservation.booking.id} FOR UPDATE`)
+          const previous = await tx.select().from(payments).where(eq(payments.bookingId, reservation.booking.id))
+            .orderBy(desc(payments.createdAt))
+          const latest = previous[0]
+          if (latest && latest.status !== 'failed') return { existing: latest }
+          const idempotencyKey = `meetup-booking:${reservation.booking.id}:${previous.length + 1}`
+          const [payment] = await tx.insert(payments).values({
+            userId: attendeeId, bookingId: reservation.booking.id, provider: 'daraja',
+            amountMinor: reservation.booking.grossAmountMinor, currency: 'KES',
+            status: 'pending', idempotencyKey, metadata: { phone, purpose: 'meetup_booking' },
+          }).returning()
+          return { payment }
+        })
+
+        if ('existing' in paymentSetup) {
+          const p = paymentSetup.existing
+          return jsonOk({
+            booking: reservation.booking,
+            payment: { status: p.status, pending: p.status === 'pending', alreadyInitiated: Boolean(p.providerReference) },
+            message: p.status === 'succeeded'
+              ? 'Payment received. Your booking is being confirmed.'
+              : 'A payment request already exists for this booking. Check your phone and do not start another payment.',
+          }, 200)
+        }
+
+        try {
+          const stk = await initiateStkPush({
+            phone, amountMinor: reservation.booking.grossAmountMinor,
+            accountReference: 'DB' + reservation.booking.id.replace(/-/g, '').slice(0, 8).toUpperCase(),
+            description: 'Meetup ticket',
+          })
+          await db.update(payments).set({
+            providerReference: stk.checkoutRequestId,
+            metadata: { phone, purpose: 'meetup_booking', merchantRequestId: stk.merchantRequestId },
+            updatedAt: new Date(),
+          }).where(eq(payments.id, paymentSetup.payment.id))
+          return jsonOk({
+            booking: reservation.booking,
+            payment: { status: 'pending', pending: true, bookingId: reservation.booking.id },
+            message: stk.customerMessage,
+          }, 201)
+        } catch (error) {
+          // Do not retry an ambiguous provider timeout automatically: Safaricom may have accepted the STK request.
+          await db.update(payments).set({
+            metadata: { phone, purpose: 'meetup_booking', submissionUnknown: true,
+              submissionError: error instanceof Error ? error.message.slice(0, 500) : 'STK submission outcome unknown' },
+            updatedAt: new Date(),
+          }).where(eq(payments.id, paymentSetup.payment.id))
+          console.error('Daraja STK Push submission failed or became uncertain', error)
+          return jsonError('We could not confirm whether Safaricom received the payment request. Check your phone before trying again, or contact support.', 502, 'MPESA_SUBMISSION_UNCERTAIN')
+        }
       } catch (error) {
-        console.error('Paid meetup booking reservation failed', error)
-        return jsonError('We could not reserve these tickets.', 500, 'BOOKING_RESERVATION_FAILED')
+        console.error('Paid meetup booking failed', error)
+        return jsonError('We could not reserve these tickets or start payment.', 500, 'BOOKING_CHECKOUT_FAILED')
       }
     },
   } },
