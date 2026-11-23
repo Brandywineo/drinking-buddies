@@ -59,7 +59,7 @@ The local PostGIS container uses development-only credentials. Change them befor
 
 - `GET /api/health` — process health.
 - `GET /api/ready` — database readiness.
-- `POST /api/auth/register` — email/password registration with mandatory 18+ acknowledgement; queues a verification email.
+- `POST /api/auth/register` — email/password registration with mandatory 18+ acknowledgement; email verification is disabled by default and configurable by admins.
 - `POST /api/auth/verify-email (JSON body: { token })` — consumes a one-time verification token.
 - `POST /api/auth/login` — verifies credentials and creates an HttpOnly session cookie.
 - `GET /api/auth/me` — returns the current signed-in user.
@@ -93,7 +93,7 @@ Implemented in this branch:
 - Responsive discovery UI backed by authenticated profile and discovery APIs; meetup and venue UI shells remain demo-backed.
 - PostgreSQL/PostGIS Drizzle schema and SQL migrations.
 - Local Docker PostGIS database.
-- Email/password registration, 18+ acknowledgement, one-time email verification, login, session lookup and logout.
+- Email/password registration with 18+ acknowledgement, optional email verification (disabled by default), immediate session creation, login, session lookup and logout.
 - Transactional email outbox and retrying SMTP worker.
 - Health and database readiness endpoints.
 - CI build/typecheck workflow.
@@ -108,7 +108,7 @@ Still to implement:
 - Meetup editing/cancellation, host transfer and invitation-only private meetups.
 - Venue self-registration, admin approval UI and admin-configurable package management.
 - M-Pesa Daraja integration and payment callback verification.
-- Admin dashboard, moderation tooling and analytics.
+- Admin dashboard with account management, report moderation, email-verification policy controls and finance operations.
 
 Meetups now come from the database and are real user-created plans. The venue section still contains illustrative demo data. Do not treat venue entries as real businesses or real-time availability.
 
@@ -132,3 +132,8 @@ The app includes a web app manifest, install affordance, standalone display mode
 The service worker caches only static app assets and the offline fallback. It deliberately does not cache authenticated HTML, API responses, messages or payment data. Installability and service-worker registration require HTTPS in production (localhost is supported for development).
 
 This PWA is an installable web app, not a signed Android APK or iOS App Store binary. Native-store packaging can be added separately after the production domain is configured.
+
+
+## Administrator bootstrap
+
+The first administrator is an ordinary registered user whose normalized email is listed in the server-side `ADMIN_EMAILS` environment variable (comma-separated for multiple administrators). Set that variable before the administrator signs in, then register or sign in with that email address and open `/admin/`. There is no separate default admin password. Never expose `ADMIN_EMAILS` through a client-side variable.

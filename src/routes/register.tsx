@@ -27,6 +27,10 @@ function RegisterPage() {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error?.message ?? 'Registration failed.')
+      if (result.data?.authenticated) {
+        window.location.assign('/')
+        return
+      }
       setMessage('Your account is created. Check your inbox for the verification email before signing in.')
       formElement.reset()
     } catch (cause) {
