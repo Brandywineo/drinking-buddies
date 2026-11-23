@@ -79,6 +79,7 @@ export const Route = createFileRoute('/api/bookings/$bookingId/checkout')({
                 purpose: 'meetup_booking',
                 checkoutRequestId: stk.checkoutRequestId,
                 merchantRequestId: stk.merchantRequestId,
+                environment: stk.environment,
                 customerMessage: stk.customerMessage,
                 initiatedAt: now.toISOString(),
               },

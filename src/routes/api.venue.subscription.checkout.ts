@@ -38,7 +38,7 @@ export const Route = createFileRoute('/api/venue/subscription/checkout')({ serve
   const [payment] = await db.insert(payments).values({ userId, venueId: venue.id, subscriptionId: sub.id, provider: 'daraja', amountMinor: pkg.priceMinor, currency: pkg.currency, status: 'pending', idempotencyKey: 'venue-membership:' + sub.id + ':' + crypto.randomUUID(), metadata: { purpose: 'venue_subscription', phone, billingInterval: pkg.billingInterval, packageId: pkg.id } }).returning()
   if (!payment) return jsonError('Could not create payment.', 500, 'PAYMENT_CREATE_FAILED')
   const stk = await initiateStkPush({ phone, amountMinor: pkg.priceMinor, accountReference: 'DBVENUE' + sub.id.replace(/-/g, '').slice(0, 8), description: 'Venue package' })
-  await db.update(payments).set({ providerReference: stk.checkoutRequestId, metadata: { purpose: 'venue_subscription', phone, billingInterval: pkg.billingInterval, packageId: pkg.id, checkoutRequestId: stk.checkoutRequestId, merchantRequestId: stk.merchantRequestId }, updatedAt: new Date() }).where(eq(payments.id, payment.id))
+  await db.update(payments).set({ providerReference: stk.checkoutRequestId, metadata: { purpose: 'venue_subscription', phone, billingInterval: pkg.billingInterval, packageId: pkg.id, checkoutRequestId: stk.checkoutRequestId, merchantRequestId: stk.merchantRequestId, environment: stk.environment }, updatedAt: new Date() }).where(eq(payments.id, payment.id))
   return jsonOk({ paymentId: payment.id, status: 'pending', customerMessage: stk.customerMessage }, 201)
  } catch (error) {
   console.error('Venue package checkout failed', error)

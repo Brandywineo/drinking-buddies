@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryMedia } from '../db/schema'
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/api/memories/media/$mediaId')({
         if (!userId) return jsonError('Sign in to view this media.', 401, 'UNAUTHENTICATED')
         const parsed = z.string().uuid().safeParse(params.mediaId)
         if (!parsed.success) return jsonError('Invalid media.', 400, 'INVALID_MEDIA')
-        const [media] = await getDb().select().from(memoryMedia).where(and(eq(memoryMedia.id, parsed.data), eq(memoryMedia.moderationStatus, 'approved'), isNull(memoryMedia.deletedAt))).limit(1)
+        const [media] = await getDb().select().from(memoryMedia).where(and(eq(memoryMedia.id, parsed.data), or(eq(memoryMedia.moderationStatus, 'approved'), eq(memoryMedia.uploaderId, userId)), isNull(memoryMedia.deletedAt))).limit(1)
         if (!media || !await canAccessMemoryAlbum(media.albumId, userId)) return jsonError('Media not found.', 404, 'MEDIA_NOT_FOUND')
         const bytes = await readCommunityFile(media.storageKey)
         return new Response(bytes, { headers: { 'Content-Type': media.mimeType, 'Content-Length': String(bytes.byteLength), 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff' } })
