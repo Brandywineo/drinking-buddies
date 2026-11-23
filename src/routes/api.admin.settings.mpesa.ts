@@ -6,6 +6,7 @@ import { platformSettings } from '../db/schema'
 import { getAdminUserId } from '../lib/admin'
 import { jsonError, jsonOk } from '../lib/http'
 import { createOpaqueToken } from '../lib/crypto'
+import { getDarajaConfig } from '../lib/daraja'
 import { encryptMpesaSecrets, getMpesaSecrets, isMpesaEncryptionReady, mpesaSecretFields, type MpesaSecrets } from '../lib/mpesa-secrets'
 
 const credentialsSchema = z.object({
@@ -60,6 +61,25 @@ export const Route = createFileRoute('/api/admin/settings/mpesa')({
         configured: Object.fromEntries(mpesaSecretFields().map((field) => [field, Boolean(secrets[field])])),
         ...status,
       })
+    },
+    POST: async ({ request }) => {
+      if (!await getAdminUserId(request)) return jsonError('Admin access required.', 403, 'ADMIN_REQUIRED')
+      try {
+        const config = await getDarajaConfig()
+        const basic = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64')
+        const response = await fetch(`${config.baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
+          headers: { Authorization: `Basic ${basic}` },
+          signal: AbortSignal.timeout(15_000),
+        })
+        const payload = await response.json() as { access_token?: unknown; errorMessage?: unknown }
+        if (!response.ok || typeof payload.access_token !== 'string') {
+          return jsonError(typeof payload.errorMessage === 'string' ? payload.errorMessage : 'Daraja rejected these credentials.', 502, 'MPESA_CONNECTION_FAILED')
+        }
+        return jsonOk({ connected: true, environment: process.env.MPESA_ENV ?? 'sandbox' })
+      } catch (error) {
+        console.error('Daraja connection test failed', error)
+        return jsonError(error instanceof Error ? error.message : 'Could not connect to Daraja.', 502, 'MPESA_CONNECTION_FAILED')
+      }
     },
     PUT: async ({ request }) => {
       const adminId = await getAdminUserId(request)
