@@ -9,7 +9,7 @@ import { jsonError, jsonOk } from '../lib/http'
 
 const schema = z.object({
   title: z.string().trim().min(3).max(120), description: z.string().trim().min(10).max(1000),
-  dealType: z.enum(['discount','offer','event','happy_hour']), discountLabel: z.string().trim().max(60).optional(),
+  dealType: z.enum(['happy_hour','group','birthday','vip','general']), discountLabel: z.string().trim().max(60).optional(),
   startsAt: z.string().datetime(), endsAt: z.string().datetime(), maxRedemptions: z.number().int().positive().max(100000).nullable().optional(),
 }).strict().refine((v) => new Date(v.endsAt) > new Date(v.startsAt), 'End time must follow start time.')
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/api/venues/$venueId/deals')({
         const [venue] = await getDb().select({ id: venues.id, approvalStatus: venues.approvalStatus, isPublished: venues.isPublished }).from(venues).where(eq(venues.id, id.data)).limit(1)
         if (!venue || (!access?.role && (venue.approvalStatus !== 'approved' || !venue.isPublished))) return jsonError('Venue not found.', 404, 'VENUE_NOT_FOUND')
         const rows = await getDb().select().from(venueDeals).where(and(
-          eq(venueDeals.venueId, id.data), ...(access?.role ? [] : [eq(venueDeals.status, 'active')]),
+          eq(venueDeals.venueId, id.data), ...(access?.role ? [] : [eq(venueDeals.status, 'published')]),
         )).orderBy(desc(venueDeals.createdAt)).limit(100)
         return jsonOk({ deals: rows })
       } catch (error) {
@@ -48,7 +48,7 @@ export const Route = createFileRoute('/api/venues/$venueId/deals')({
         if (!parsed.success) return jsonError('Check the deal details and dates.', 400, 'INVALID_DEAL')
         const [deal] = await getDb().insert(venueDeals).values({
           venueId: id.data, createdById: userId, ...parsed.data, discountLabel: parsed.data.discountLabel ?? null,
-          maxRedemptions: parsed.data.maxRedemptions ?? null, status: 'active',
+          maxRedemptions: parsed.data.maxRedemptions ?? null, status: 'published',
         }).returning()
         return jsonOk({ deal }, 201)
       } catch (error) {
