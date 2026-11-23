@@ -48,6 +48,7 @@ const intentLabels: Record<string, string> = {
 function App() {
   const [tab, setTab] = useState<Tab>('discover')
   const [discoveryMode, setDiscoveryMode] = useState<'social' | 'friendship' | 'dating'>('social')
+  const [discoveryLayout, setDiscoveryLayout] = useState<'deck' | 'grid'>('deck')
   const swipeStart = useRef<{ userId: string; x: number; y: number } | null>(null)
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('All areas')
@@ -353,9 +354,9 @@ function App() {
               <div className="banner-orb orb-one" /><div className="banner-orb orb-two" />
             </section>
             <div className="discovery-modes" role="tablist" aria-label="Choose your discovery experience"><button className={discoveryMode === 'social' ? 'active' : ''} onClick={() => { setDiscoveryMode('social'); void loadDiscovery(area, 'social') }}>Social discovery</button><button className={discoveryMode === 'friendship' ? 'active' : ''} onClick={() => { setDiscoveryMode('friendship'); void loadDiscovery(area, 'friendship') }}>Friendship</button><button className={discoveryMode === 'dating' ? 'active' : ''} onClick={() => { setDiscoveryMode('dating'); void loadDiscovery(area, 'dating') }}>Dating</button></div>
-            <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>{discoveryMode === 'dating' ? 'People open to dating' : discoveryMode === 'friendship' ? 'People looking for friendship' : 'People near you'}</h2><p>Say hello to someone new. Match first, then chat.</p></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div>
+            <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>{discoveryMode === 'dating' ? 'People open to dating' : discoveryMode === 'friendship' ? 'People looking for friendship' : 'People near you'}</h2><p>Say hello to someone new. Match first, then chat.</p></div><div className="flex flex-wrap items-center gap-2"><div className="discovery-layout-toggle" role="group" aria-label="Discovery layout"><button className={discoveryLayout === 'deck' ? 'active' : ''} onClick={() => setDiscoveryLayout('deck')}>Swipe deck</button><button className={discoveryLayout === 'grid' ? 'active' : ''} onClick={() => setDiscoveryLayout('grid')}>Grid</button></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div></div>
             {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => { setArea(e.target.value); void loadDiscovery(e.target.value) }}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option><option>Riverside</option><option>Parklands</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery(''); void loadDiscovery('All areas') }}>Clear</button></div>}
-            {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id} onTouchStart={(event) => { const touch = event.touches[0]; swipeStart.current = { userId: person.id, x: touch.clientX, y: touch.clientY } }} onTouchEnd={(event) => { const start = swipeStart.current; swipeStart.current = null; if (!start || start.userId !== person.id) return; const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.2) { if (dx > 0) void like(person.id); else void pass(person.id) } }}><div className="person-photo" style={{ backgroundImage: person.avatarUrl ? `linear-gradient(180deg, transparent, #11130fe8), url(${person.avatarUrl})` : 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label={favoritePeople.includes(person.id) ? 'Remove favourite ' + person.displayName : 'Favourite ' + person.displayName} onClick={() => void toggleFavorite(person.id)}><Star size={16} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}<p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
+            {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : discoveryLayout === 'deck' ? <DiscoveryDeck people={visibleBuddies} favoritePeople={favoritePeople} onLike={(id) => void like(id)} onPass={(id) => void pass(id)} onFavorite={(id) => void toggleFavorite(id)} /> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id} onTouchStart={(event) => { const touch = event.touches[0]; swipeStart.current = { userId: person.id, x: touch.clientX, y: touch.clientY } }} onTouchEnd={(event) => { const start = swipeStart.current; swipeStart.current = null; if (!start || start.userId !== person.id) return; const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.2) { if (dx > 0) void like(person.id); else void pass(person.id) } }}><div className="person-photo" style={{ backgroundImage: person.avatarUrl ? `linear-gradient(180deg, transparent, #11130fe8), url(${person.avatarUrl})` : 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label={favoritePeople.includes(person.id) ? 'Remove favourite ' + person.displayName : 'Favourite ' + person.displayName} onClick={() => void toggleFavorite(person.id)}><Star size={16} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}<p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
             {!discoveryLoading && !discoveryError && visibleBuddies.length === 0 && <div className="empty-state"><Search size={24} /><b>No community profiles to show yet</b><span>Try another area, or check back as more people complete their profiles.</span></div>}
             <div className="privacy-strip"><ShieldCheck size={18} /><span><b>Your location stays yours.</b> People see only the area or meetup location you choose to share.</span><button onClick={() => setShowProfileForm(true)}>Privacy settings</button></div>
             </>}
@@ -395,6 +396,49 @@ function App() {
       <div className="mobile-nav"><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('community')} className={tab === 'community' ? 'active' : ''}><CalendarDays size={19} /><span>Let's Go Out</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('memories')} className={tab === 'memories' ? 'active' : ''}><Camera size={19} /><span>Memories</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
     </div>
   )
+}
+
+
+function DiscoveryDeck({ people, favoritePeople, onLike, onPass, onFavorite }: {
+  people: MemberProfile[]
+  favoritePeople: string[]
+  onLike: (id: string) => void
+  onPass: (id: string) => void
+  onFavorite: (id: string) => void
+}) {
+  const [index, setIndex] = useState(0)
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
+  useEffect(() => { setIndex(0) }, [people.map((person) => person.id).join('|')])
+  const person = people[index]
+  if (!person) return <div className="empty-state"><Search size={24}/><b>You’re all caught up</b><span>Try another discovery mode or area, or come back when more people join.</span></div>
+  const move = (direction: 'like' | 'pass') => {
+    setIndex((current) => Math.min(current + 1, people.length))
+    if (direction === 'like') onLike(person.id)
+    else onPass(person.id)
+  }
+  return <section className="discovery-deck" aria-label="Swipe through community profiles">
+    <div className="deck-progress"><span>{index + 1} of {people.length}</span><div><i style={{ width: ((index + 1) / people.length * 100) + '%' }}/></div></div>
+    <article className="deck-card" onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })} onTouchEnd={(event) => {
+      if (!touchStart) return
+      const dx = event.changedTouches[0].clientX - touchStart.x
+      const dy = event.changedTouches[0].clientY - touchStart.y
+      setTouchStart(null)
+      if (Math.abs(dx) > 85 && Math.abs(dx) > Math.abs(dy) * 1.25) move(dx > 0 ? 'like' : 'pass')
+    }}>
+      <div className="deck-photo" style={{ backgroundImage: person.avatarUrl ? 'linear-gradient(180deg, transparent 35%, #11130ff2), url(' + JSON.stringify(person.avatarUrl) + ')' : 'linear-gradient(135deg, #596341, #171914)' }}>
+        <span className="availability"><i/> Community member</span>
+        <button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label="Toggle favourite" onClick={() => onFavorite(person.id)}><Star size={17} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'}/></button>
+        <div className="deck-person-title"><h3>{person.displayName}</h3><span><MapPin size={14}/> {person.homeArea ?? 'Area not shared'}</span></div>
+      </div>
+      <div className="deck-person-details">
+        <div className="flex flex-wrap gap-2"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}</div>
+        <p>{person.bio || 'Open to meeting good people and making new connections.'}</p>
+        <div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div>
+        <div className="deck-actions"><button className="pass-button" onClick={() => move('pass')}><X size={18}/> Pass</button><button className="interest-button" onClick={() => move('like')}><Heart size={17}/> Say hello</button></div>
+        <small className="deck-hint">Swipe right to say hello · left to pass</small>
+      </div>
+    </article>
+  </section>
 }
 
 function NavButton({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: ReactNode; label: string; count?: string }) {
