@@ -41,8 +41,8 @@ export const Route = createFileRoute('/api/meetups/$meetupId/bookings')({
         if (mpesaConfig.enabled !== true) return jsonError('M-PESA checkout is temporarily unavailable. Please try again later.', 503, 'MPESA_DISABLED')
         if ((process.env.MPESA_ENV ?? 'sandbox') !== 'sandbox') return jsonError('Live M-PESA checkout is not enabled yet.', 503, 'MPESA_LIVE_DISABLED')
         try {
-          getDarajaConfig()
-          withDarajaCallbackToken(process.env.MPESA_CALLBACK_URL ?? '')
+          const darajaConfig = await getDarajaConfig()
+          await withDarajaCallbackToken(darajaConfig.callbackUrl, darajaConfig.callbackToken)
         } catch {
           return jsonError('M-PESA configuration is incomplete. Please contact support.', 503, 'MPESA_NOT_CONFIGURED')
         }
