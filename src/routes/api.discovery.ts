@@ -6,7 +6,7 @@ import { matches, profileLikes, profilePasses, profiles, userBlocks, users } fro
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
-const querySchema = z.object({ area: z.string().trim().max(120).optional() })
+const querySchema = z.object({ area: z.string().trim().max(120).optional(), mode: z.enum(['social', 'friendship', 'dating']).default('social') })
 
 export const Route = createFileRoute('/api/discovery')({
   server: { handlers: { GET: async ({ request }) => {
@@ -20,6 +20,7 @@ export const Route = createFileRoute('/api/discovery')({
         .from(profiles).where(eq(profiles.userId, userId)).limit(1)
       if (!viewer) return jsonError('Complete your profile before discovering people.', 409, 'PROFILE_REQUIRED')
 
+      const intentFilter = parsed.data.mode === 'friendship' ? 'friendship' : parsed.data.mode === 'dating' ? 'social_and_dating' : null
       const candidates = await db.select({
         id: users.id, displayName: profiles.displayName, bio: profiles.bio, gender: profiles.gender,
         preferredGenders: profiles.preferredGenders, interests: profiles.interests,
@@ -32,6 +33,7 @@ export const Route = createFileRoute('/api/discovery')({
       }).from(profiles).innerJoin(users, eq(users.id, profiles.userId))
         .where(and(
           eq(users.status, 'active'), eq(profiles.discoverable, true), ne(users.id, userId),
+          ...(intentFilter ? [sql`${profiles.connectionIntents} @> ${JSON.stringify([intentFilter])}::jsonb`] : []),
           ...(parsed.data.area ? [eq(profiles.locationVisibility, 'public'), ilike(profiles.homeArea, `%${parsed.data.area}%`)] : []),
           notExists(db.select({ id: profileLikes.id }).from(profileLikes).where(and(eq(profileLikes.fromUserId, userId), eq(profileLikes.toUserId, users.id)))),
           notExists(db.select({ id: profilePasses.id }).from(profilePasses).where(and(eq(profilePasses.fromUserId, userId), eq(profilePasses.toUserId, users.id)))),
