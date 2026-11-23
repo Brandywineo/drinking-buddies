@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, MessageCircle, Send, RefreshCw } from 'lucide-react'
 
 type Conversation = {
@@ -20,6 +20,7 @@ export function Messaging({ currentUserId }: { currentUserId: string }) {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const historyEndRef = useRef<HTMLDivElement | null>(null)
 
   async function loadConversations() {
     const response = await fetch('/api/conversations')
@@ -71,6 +72,8 @@ export function Messaging({ currentUserId }: { currentUserId: string }) {
     return () => { live = false; window.clearInterval(timer) }
   }, [activeId])
 
+  useEffect(() => { historyEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages])
+
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!activeId || !draft.trim() || sending) return
@@ -108,8 +111,9 @@ export function Messaging({ currentUserId }: { currentUserId: string }) {
       <div className={'chat-panel ' + (showChat ? 'mobile-open' : '')}>
         {activeId ? <>
           <div className="chat-panel-head"><button className="chat-back" onClick={() => setShowChat(false)} aria-label="Back to conversations"><ArrowLeft size={18} /></button><div><b>{conversations.find((item) => item.id === activeId)?.peer?.displayName ?? conversations.find((item) => item.id === activeId)?.meetup?.title ?? 'Conversation'}</b><small>Meet kindly. Stay safe.</small></div></div>
-          <div className="chat-history">
+          <div className="chat-history" aria-live="polite">
             {messages.length === 0 ? <p className="chat-hint">No messages yet. Say hello!</p> : messages.map((message) => <div key={message.id} className={'chat-bubble ' + (message.senderId === currentUserId ? 'mine' : '')}><p>{message.body}</p><time>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div>)}
+            <div ref={historyEndRef}/>
           </div>
           <form className="chat-compose" onSubmit={send}><input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={4000} placeholder="Write a message…" aria-label="Message" /><button className="primary-button" type="submit" disabled={sending || !draft.trim()}><Send size={15} /> {sending ? 'Sending…' : 'Send'}</button></form>
         </> : <div className="chat-hint">Choose a conversation to start chatting.</div>}
