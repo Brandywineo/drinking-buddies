@@ -234,3 +234,5 @@ jobs:
             "$BASE_URL/api/squads/$SQUAD_ID/messages" -H "Cookie: db_session=$TOKEN_A")" = "200"
           grep -q 'See you Friday, crew!' /tmp/squad-history.json
           echo "M3 discovery modes and M4 Go Out plans, private squad invitations and squad discussion integration tests passed."
+
+          # Keep social discovery and community-planning integration coverage in the main CI gate.
