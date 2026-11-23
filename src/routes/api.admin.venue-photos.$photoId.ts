@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../../db'
-import { venuePhotos } from '../../../db/schema'
-import { getAdminUserId } from '../../../lib/admin'
-import { readCommunityFile } from '../../../lib/community-media'
-import { jsonError } from '../../../lib/http'
+import { getDb } from '../db'
+import { venuePhotos } from '../db/schema'
+import { getAdminUserId } from '../lib/admin'
+import { readCommunityFile } from '../lib/community-media'
+import { jsonError } from '../lib/http'
 
 export const Route = createFileRoute('/api/admin/venue-photos/$photoId')({
  server:{handlers:{GET:async({request,params})=>{
