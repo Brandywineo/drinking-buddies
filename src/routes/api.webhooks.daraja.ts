@@ -86,6 +86,7 @@ export const Route = createFileRoute('/api/webhooks/daraja')({
             if (!booking) throw new Error('Payment booking no longer exists')
             const late = booking.status !== 'pending_payment' || booking.expiresAt <= now
             await tx.update(payments).set({ metadata: { ...lockedPayment.metadata, receipt, payerPhone: phone, resultCode: 0, latePaymentReview: late }, updatedAt: now }).where(eq(payments.id, lockedPayment.id))
+            if (late) await tx.update(paymentWebhookEvents).set({ processingError: 'Successful M-PESA payment arrived after the booking reservation expired; manual refund or booking review is required.' }).where(eq(paymentWebhookEvents.id, event.id))
             if (!late) {
               await tx.update(meetupBookings).set({ status: 'confirmed', confirmedAt: now, updatedAt: now })
                 .where(and(eq(meetupBookings.id, booking.id), eq(meetupBookings.status, 'pending_payment')))
