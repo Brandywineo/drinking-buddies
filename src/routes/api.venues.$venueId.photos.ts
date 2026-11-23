@@ -17,15 +17,13 @@ export const Route = createFileRoute('/api/venues/$venueId/photos')({
         if (!id.success) return jsonError('Invalid venue.', 400, 'INVALID_VENUE')
         const access = await canManageVenue(id.data, userId)
         if (!access.role || !['owner','manager','staff'].includes(access.role)) return jsonError('Only venue team members can upload photos.', 403, 'VENUE_FORBIDDEN')
-        const [venue] = await getDb().select({ approvalStatus: venues.approvalStatus }).from(venues).where(eq(venues.id, id.data)).limit(1)
-        if (venue?.approvalStatus !== 'approved') return jsonError('Venue must be approved before uploading public photos.', 409, 'VENUE_NOT_APPROVED')
         const form = await request.formData()
         const file = form.get('file')
         if (!(file instanceof File)) return jsonError('Choose a JPG, PNG or WebP photo.', 400, 'PHOTO_REQUIRED')
         const stored = await storeCommunityFile(file, false)
         const [photo] = await getDb().insert(venuePhotos).values({
           venueId: id.data, uploadedById: userId, storageKey: stored.key, mimeType: stored.mimeType,
-          sizeBytes: stored.sizeBytes, caption: String(form.get('caption') ?? '').trim().slice(0,240) || null,
+          sizeBytes: stored.sizeBytes, caption: String(form.get('caption') ?? '').trim().slice(0,240) || null, status: 'pending',
         }).returning({ id: venuePhotos.id, caption: venuePhotos.caption, createdAt: venuePhotos.createdAt })
         return jsonOk({ photo: { ...photo, url: '/api/venue-photos/' + photo.id } }, 201)
       } catch (error) {
