@@ -50,7 +50,7 @@ export const Route = createFileRoute('/api/conversations')({
           .orderBy(desc(messages.createdAt)).limit(1)
         return { ...item, lastMessage: lastMessage ?? null, lastActivityAt: lastMessage?.createdAt ?? item.createdAt }
       }))
-      withActivity.sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime())
+      withActivity.sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime())
       return jsonOk({ conversations: withActivity })
     } catch (error) {
       console.error('Conversation list failed', error)
