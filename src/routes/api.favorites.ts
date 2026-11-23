@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, delete as deleteRows, eq, or } from 'drizzle-orm'
+import { and, eq, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { favoriteProfiles, favoriteVenues, profiles, userBlocks, users, venues } from '../db/schema'
