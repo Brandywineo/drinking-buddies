@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  ArrowRight, Bell, CalendarDays, Check, ChevronDown, Compass, Heart,
+  ArrowRight, Bell, CalendarDays, Check, ChevronDown, Compass, Heart, Star,
   MapPin, MessageCircle, Plus, Search, ShieldCheck, SlidersHorizontal,
   Sparkles, Users, Wine, X,
 } from 'lucide-react'
@@ -35,7 +35,7 @@ type OwnProfile = {
   homeArea: string | null
 }
 type SessionUser = { id: string; email: string; displayName: string | null }
-type ProfileStats = { hostedMeetups: number; joinedMeetups: number; attendedMeetups: number; receivedLikes: number; activeMatches: number; popularityScore: number; reputationScore: number }
+type ProfileStats = { hostedMeetups: number; joinedMeetups: number; attendedMeetups: number; receivedLikes: number; activeMatches: number; favoriteHosts: number; favoritePlaces: number; popularityScore: number; reputationScore: number }
 const KENYA_AREAS = ['Nairobi - Westlands','Nairobi - Kilimani','Nairobi - Lavington','Nairobi - CBD','Nairobi - Karen','Nairobi - Parklands','Nairobi - Kasarani','Nairobi - Rongai','Kiambu','Thika','Mombasa - Nyali','Mombasa - CBD','Kisumu','Nakuru','Eldoret','Naivasha','Nanyuki','Nyeri','Machakos','Kitengela','Malindi','Diani']
 const intentLabels: Record<string, string> = {
   drinking_buddies: 'Drinking buddies', friendship: 'New friendships',
@@ -59,6 +59,7 @@ function App() {
   const [showLocationPicker, setShowLocationPicker] = useState(false)
   const [savingLocation, setSavingLocation] = useState(false)
   const [profiles, setProfiles] = useState<MemberProfile[]>([])
+  const [favoritePeople, setFavoritePeople] = useState<string[]>([])
   const [discoveryLoading, setDiscoveryLoading] = useState(false)
   const [discoveryError, setDiscoveryError] = useState('')
   const [profileBusy, setProfileBusy] = useState(false)
@@ -72,6 +73,13 @@ function App() {
   const [preferredGenders, setPreferredGenders] = useState<string[]>([])
   const [locationVisibility, setLocationVisibility] = useState<'private' | 'matches' | 'public'>('private')
   const [discoverable, setDiscoverable] = useState(true)
+
+  async function loadFavorites() {
+    const response = await fetch('/api/favorites')
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.error?.message ?? 'Could not load favourites.')
+    setFavoritePeople((result.data?.people ?? []).map((person: { id: string }) => person.id))
+  }
 
   async function loadDiscovery(selectedArea = area) {
     setDiscoveryLoading(true)
@@ -123,7 +131,7 @@ function App() {
           setPreferredGenders(ownProfile.preferredGenders)
           setLocationVisibility(ownProfile.locationVisibility)
           setDiscoverable(ownProfile.discoverable)
-          await loadDiscovery('All areas')
+          await Promise.all([loadDiscovery('All areas'), loadFavorites()])
         } else {
           setProfileName(user.displayName ?? '')
           setShowProfileForm(true)
@@ -159,6 +167,17 @@ function App() {
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : 'Could not send your interest.')
     }
+  }
+
+  const toggleFavorite = async (id: string) => {
+    const saved = favoritePeople.includes(id)
+    try {
+      const response = await fetch('/api/favorites', { method: saved ? 'DELETE' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'person', targetId: id }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not update your favourites.')
+      setFavoritePeople((current) => saved ? current.filter((value) => value !== id) : [...current, id])
+      notify(saved ? 'Removed from your favourite people.' : 'Saved to your favourite people.')
+    } catch (cause) { notify(cause instanceof Error ? cause.message : 'Could not update your favourites.') }
   }
 
   const pass = async (id: string) => {
@@ -300,7 +319,7 @@ function App() {
             </section>
             <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>People near you</h2><p>Say hello to someone new. Match first, then chat.</p></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div>
             {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => { setArea(e.target.value); void loadDiscovery(e.target.value) }}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option><option>Riverside</option><option>Parklands</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery(''); void loadDiscovery('All areas') }}>Clear</button></div>}
-            {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id}><div className="person-photo" style={{ backgroundImage: 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}<p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
+            {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id}><div className="person-photo" style={{ backgroundImage: 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label={favoritePeople.includes(person.id) ? 'Remove favourite ' + person.displayName : 'Favourite ' + person.displayName} onClick={() => void toggleFavorite(person.id)}><Star size={16} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}<p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
             {!discoveryLoading && !discoveryError && visibleBuddies.length === 0 && <div className="empty-state"><Search size={24} /><b>No community profiles to show yet</b><span>Try another area, or check back as more people complete their profiles.</span></div>}
             <div className="privacy-strip"><ShieldCheck size={18} /><span><b>Your location stays yours.</b> People see only the area or meetup location you choose to share.</span><button onClick={() => setShowProfileForm(true)}>Privacy settings</button></div>
             </>}
@@ -317,7 +336,7 @@ function App() {
       </main>
 
       {showProfileForm && authStatus === 'signed_in' && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && profile) setShowProfileForm(false) }}><div className="modal"><div className="modal-head"><div><span className="eyebrow">YOUR COMMUNITY PROFILE</span><h2>{profile ? 'Edit your profile' : 'Set up your profile'}</h2></div>{profile && <button className="icon-button" onClick={() => setShowProfileForm(false)}><X size={19} /></button>}</div>{profileError && <div className="auth-error">{profileError}</div>}<form onSubmit={saveProfile}>
-        {profileStats && <div className="profile-stats-panel"><b>Your community activity</b><div><span><strong>{profileStats.hostedMeetups}</strong><small>Hosted</small></span><span><strong>{profileStats.joinedMeetups}</strong><small>Joined</small></span><span><strong>{profileStats.attendedMeetups}</strong><small>Attended</small></span><span><strong>{profileStats.activeMatches}</strong><small>Matches</small></span></div><small>Popularity points: {profileStats.popularityScore} · Reputation points: {profileStats.reputationScore}</small></div>}
+        {profileStats && <div className="profile-stats-panel"><b>Your community activity</b><div><span><strong>{profileStats.hostedMeetups}</strong><small>Hosted</small></span><span><strong>{profileStats.joinedMeetups}</strong><small>Joined</small></span><span><strong>{profileStats.attendedMeetups}</strong><small>Attended</small></span><span><strong>{profileStats.activeMatches}</strong><small>Matches</small></span><span><strong>{profileStats.favoriteHosts}</strong><small>Hosts saved</small></span><span><strong>{profileStats.favoritePlaces}</strong><small>Places saved</small></span></div><small>Popularity points: {profileStats.popularityScore} · Reputation points: {profileStats.reputationScore}</small></div>}
         <label>Display name<input value={profileName} onChange={(e) => setProfileName(e.target.value)} minLength={2} maxLength={48} required placeholder="What should people call you?" /></label>
         <label>About you<textarea rows={3} value={profileBio} onChange={(e) => setProfileBio(e.target.value)} maxLength={500} placeholder="A little about the people and plans you enjoy…" /></label>
         <div className="form-row"><label>Gender<input value={profileGender} onChange={(e) => setProfileGender(e.target.value)} maxLength={32} placeholder="Optional" /></label><label>Home area<input value={profileArea} onChange={(e) => setProfileArea(e.target.value)} maxLength={120} placeholder="e.g. Westlands" /></label></div>
