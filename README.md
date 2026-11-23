@@ -123,3 +123,12 @@ Meetups now come from the database and are real user-created plans. The venue se
 - Minimize location collection and return only the user's selected visibility level.
 - Add request rate limiting and monitoring before public registration launch.
 - Complete Kenyan legal and privacy review before enabling alcohol-related paid promotions.
+
+
+## Progressive Web App (PWA)
+
+The app includes a web app manifest, install affordance, standalone display mode, app icons and a service worker. On supported Android browsers, users can install it from the in-app prompt; on iOS, the install helper explains Safari's Share → Add to Home Screen flow.
+
+The service worker caches only static app assets and the offline fallback. It deliberately does not cache authenticated HTML, API responses, messages or payment data. Installability and service-worker registration require HTTPS in production (localhost is supported for development).
+
+This PWA is an installable web app, not a signed Android APK or iOS App Store binary. Native-store packaging can be added separately after the production domain is configured.
