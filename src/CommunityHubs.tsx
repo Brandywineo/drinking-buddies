@@ -89,6 +89,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [comments,setComments] = useState<{id:string;body:string;displayName:string|null;userId:string;parentId:string|null}[]>([])
   const [commentBody,setCommentBody] = useState('')
   const [inviteUserId,setInviteUserId] = useState('')
+  const [shareUrl,setShareUrl] = useState('')
   const [meetupOptions,setMeetupOptions] = useState<{id:string;title:string;area:string;startsAt:string}[]>([])
   const [squadOptions,setSquadOptions] = useState<{id:string;name:string;area:string|null}[]>([])
   const [communityAlbums,setCommunityAlbums] = useState<{id:string;title:string;description:string|null;displayName:string|null;createdAt:string}[]>([])
@@ -174,6 +175,17 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     const result=await response.json()
     setNotice(response.ok?'Reaction added.':result.error?.message??'Could not react.')
   }
+
+  async function createShareLink() {
+    if(!active)return
+    const response=await fetch('/api/memories/social',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'share',albumId:active.id,expiresInDays:30})})
+    const result=await response.json()
+    if(!response.ok){setNotice(result.error?.message??'Could not create share link.');return}
+    const url=window.location.origin+'/api/memories/share/'+result.data.token
+    setShareUrl(url)
+    try{await navigator.clipboard.writeText(url);setNotice('Share link created and copied.')}catch{setNotice('Share link created. Copy it below.')}
+  }
+
   async function inviteCollaborator(event:FormEvent) {
     event.preventDefault()
     if(!active||!inviteUserId.trim())return
@@ -210,7 +222,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     {active&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setActive(null);setFiles([])}}}>
       <div className="modal">
         <div className="modal-head"><div><span className="eyebrow">PARTY MEMORIES</span><h2>{active.title}</h2><small>{media.length} visible memories</small></div><button className="icon-button" onClick={()=>{setActive(null);setFiles([])}}><X size={18}/></button></div>
-        <button type="button" className="filter-button" onClick={()=>void reactToMemory()}>♥ Love this album</button>
+        <div className="flex flex-wrap gap-2"><button type="button" className="filter-button" onClick={()=>void reactToMemory()}>♥ Love this album</button><button type="button" className="filter-button" onClick={()=>void createShareLink()}>Share album link</button></div>{shareUrl&&<div className="hub-form"><label>Shareable album link<input readOnly value={shareUrl}/></label><button type="button" className="filter-button" onClick={()=>void navigator.clipboard.writeText(shareUrl)}>Copy link</button></div>
         <form className="hub-form" onSubmit={inviteCollaborator}><h3>Invite a collaborator</h3><label>User ID<input value={inviteUserId} onChange={e=>setInviteUserId(e.target.value)} placeholder="Paste the member user ID"/></label><button className="filter-button" disabled={!inviteUserId.trim()}>Send invitation</button></form>
         <form className="hub-form" onSubmit={upload}>
           <h3><Upload size={17}/> Add to this album</h3>
