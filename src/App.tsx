@@ -489,11 +489,13 @@ function DiscoveryDeck({ people, favoritePeople, onLike, onPass, onFavorite }: {
       if (Math.abs(dx) > 85 && Math.abs(dx) > Math.abs(dy) * 1.25) move(dx > 0 ? 'like' : 'pass')
     }}>
       <div className="deck-photo" style={{ backgroundImage: person.avatarUrl ? 'linear-gradient(180deg, transparent 35%, #11130ff2), url(' + JSON.stringify(person.avatarUrl) + ')' : 'linear-gradient(135deg, #596341, #171914)' }}>
-        <span className="availability"><i/> Community member</span>
+        <span className="availability"><i/> {person.goingOut ? "Going out" : "Discoverable"}</span>
         <button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label="Toggle favourite" onClick={() => onFavorite(person.id)}><Star size={17} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'}/></button>
         <div className="deck-person-title"><h3>{person.displayName}</h3><span><MapPin size={14}/> {person.homeArea ?? 'Area not shared'}</span></div>
       </div>
       <div className="deck-person-details">
+        {person.goingOut && <div className="going-out-card-context"><b>{person.goingOut.venueName || 'Going out'}{person.goingOut.area ? ' · '+person.goingOut.area : ''}</b><span>{new Date(person.goingOut.startsAt).toLocaleString('en-KE',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Nairobi'})} – {new Date(person.goingOut.endsAt).toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Nairobi'})}</span><span>{(person.goingOut.drinks ?? []).join(' · ')}{person.goingOut.drinkQuantity ? ' · '+person.goingOut.drinkQuantity : ''}</span>{person.goingOut.note && <small>{person.goingOut.note}</small>}</div>}
+        {(person.preferredDrinks?.length ?? 0)>0 && <div className="interest-tags">{person.preferredDrinks.map(drink=><span key={drink}>{drink}</span>)}</div>}
         <div className="flex flex-wrap gap-2"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}</div>
         <p>{person.bio || 'Open to meeting good people and making new connections.'}</p>
         <div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div>
