@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, desc, eq, isNull, gt } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { getDb } from '../db'
