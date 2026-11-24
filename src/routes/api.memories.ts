@@ -11,7 +11,7 @@ const schema = z.object({
   description: z.string().trim().max(500).nullable().optional(),
   meetupId: z.string().uuid().nullable().optional(),
   squadId: z.string().uuid().nullable().optional(),
-  visibility: z.enum(['public','members','private']).default('members'),
+  visibility: z.enum(['public','followers','meetup','squad','invited','private']).default('members'),
 }).strict().refine((value) => !(value.meetupId && value.squadId), 'Choose either a meetup or a squad.')
 
 export const Route = createFileRoute('/api/memories')({
