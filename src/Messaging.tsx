@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, MessageCircle, Send, RefreshCw } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Send } from 'lucide-react'
 
 type Conversation = {
   id: string
@@ -97,7 +97,6 @@ export function Messaging({ currentUserId }: { currentUserId: string }) {
   }
 
   return <section className="messages-workspace">
-    <div className="section-heading"><div><div className="eyebrow">YOUR CONNECTIONS</div><h2>Messages</h2><p>Direct chats unlock after a mutual match. New messages refresh automatically.</p></div><button className="filter-button" onClick={() => { void loadConversations().catch((cause) => setError(cause.message)) }}><RefreshCw size={15} /> Refresh</button></div>
     {error && <p className="auth-error" role="alert">{error}</p>}
     <div className="chat-layout">
       <aside className={'chat-list ' + (showChat ? 'mobile-hidden' : '')}>
