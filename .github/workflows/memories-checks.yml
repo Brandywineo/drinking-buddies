@@ -15,5 +15,5 @@ jobs:
         with:
           bun-version: 1.4.5
       - run: bun install
-      - run: bun run typecheck
       - run: bun run build
+      - run: bun run typecheck
