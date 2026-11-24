@@ -93,7 +93,6 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [squadOptions,setSquadOptions] = useState<{id:string;name:string;area:string|null}[]>([])
   const [communityAlbums,setCommunityAlbums] = useState<{id:string;title:string;description:string|null;displayName:string|null;createdAt:string}[]>([])
   const [feedMode,setFeedMode] = useState<'mine'|'community'>('mine')
-  const [shareUrl,setShareUrl] = useState('')
 
   async function load() {
     const r=await fetch('/api/memories',{credentials:'include'})
@@ -101,7 +100,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     if(r.ok){setAlbums(j.data?.albums??[]);setPendingTags(j.data?.pendingTags??[])}
     else setNotice(j.error?.message??'Sign in to view memories.')
   }
-  useEffect(()=>{if(signedIn){void load();void fetch('/api/memories/social',{credentials:'include'}).then(r=>r.json()).then(j=>{if(j.data){setSavedAlbums((j.data.savedAlbums??[]).map((x:{albumId:string})=>x.albumId));setSavedMedia((j.data.savedMedia??[]).map((x:{mediaId:string})=>x.mediaId))}}).catch(()=>{});void Promise.all([fetch('/api/meetups',{credentials:'include'}).then(r=>r.json()),fetch('/api/squads',{credentials:'include'}).then(r=>r.json()),fetch('/api/memories/social?feed=community',{credentials:'include'}).then(r=>r.json())]).then(([m,s,f])=>{setMeetupOptions((m.data?.meetups??[]).filter((x:{membershipStatus:string|null})=>x.membershipStatus==='approved'||x.hostId));setSquadOptions((s.data?.squads??[]).filter((x:{myStatus:string|null})=>x.myStatus==='active'));setCommunityAlbums(f.data?.communityAlbums??[])})}},[signedIn])
+  useEffect(()=>{if(signedIn){void load();void fetch('/api/memories/social',{credentials:'include'}).then(r=>r.json()).then(j=>{if(j.data){setSavedAlbums((j.data.savedAlbums??[]).map((x:{albumId:string})=>x.albumId));setSavedMedia((j.data.savedMedia??[]).map((x:{mediaId:string})=>x.mediaId))}}).catch(()=>{});void Promise.all([fetch('/api/meetups',{credentials:'include'}).then(r=>r.json()),fetch('/api/squads',{credentials:'include'}).then(r=>r.json()),fetch('/api/memories/social?feed=community',{credentials:'include'}).then(r=>r.json())]).then(([m,s,f])=>{setMeetupOptions((m.data?.meetups??[]).filter((x:{membershipStatus:string|null;hostId:string})=>x.membershipStatus==='approved'||Boolean(x.hostId)));setSquadOptions((s.data?.squads??[]).filter((x:{myStatus:string|null})=>x.myStatus==='active'));setCommunityAlbums(f.data?.communityAlbums??[])})}},[signedIn])
   async function toggleSaved(action:'save_album'|'save_media',id:string){
     const list=action==='save_album'?savedAlbums:savedMedia
     const saved=!list.includes(id)
