@@ -94,10 +94,9 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [shareUrl,setShareUrl] = useState('')
   const [meetupOptions,setMeetupOptions] = useState<{id:string;title:string;area:string;startsAt:string}[]>([])
   const [squadOptions,setSquadOptions] = useState<{id:string;name:string;area:string|null}[]>([])
-  const [communityAlbums,setCommunityAlbums] = useState<{id:string;title:string;description:string|null;displayName:string|null;createdAt:string}[]>([])
+  const [communityAlbums,setCommunityAlbums] = useState<{id:string;title:string;description:string|null;displayName:string|null;createdAt:string;coverUrl:string|null;mediaCount:number}[]>([])
   const [feedMode,setFeedMode] = useState<'mine'|'community'>('mine')
 
-  useEffect(()=>{const handleBack=()=>{setActive(null);setShowUpload(false);setShowInvite(false);setFiles([])};window.addEventListener('popstate',handleBack);return()=>window.removeEventListener('popstate',handleBack)},[])
 
   async function load() {
     const r=await fetch('/api/memories',{credentials:'include'})
@@ -135,7 +134,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     if(r.ok)void load()
   }
   async function openAlbum(album:Album) {
-    setActive(album);setShowUpload(false);setShowInvite(false);setLoadingAlbum(true);setMedia([]);window.history.pushState({memoryAlbumId:album.id},'', '/memories/'+album.id)
+    setActive(album);setShowUpload(false);setShowInvite(false);setLoadingAlbum(true);setMedia([])
     const [r,socialResponse]=await Promise.all([fetch('/api/memories/'+album.id,{credentials:'include'}),fetch('/api/memories/social?albumId='+album.id,{credentials:'include'})])
     const [j,social]=await Promise.all([r.json(),socialResponse.json()])
     if(r.ok){setMedia(j.data?.media??[]);setActive(current=>current?{...current,mediaCount:(j.data?.media??[]).length,coverUrl:(j.data?.media??[]).find((item:Media)=>item.mediaKind!=='video')?.url??(j.data?.media??[])[0]?.url??current.coverUrl}:current)}
@@ -220,12 +219,12 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
       </form></div>}
       {pendingTags.length>0&&<div className="hub-form"><h3>Tag requests waiting for you</h3>{pendingTags.map(tag=><div className="hub-deal" key={tag.id}><p>Someone requested to tag you in a memory.</p><button className="filter-button" onClick={()=>void decideTag(tag.id,'accept')}>Accept</button> <button className="filter-button" onClick={()=>void decideTag(tag.id,'decline')}>Decline</button></div>)}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="section-heading"><div><div className="eyebrow">MEMORIES FEED</div><h3>{feedMode==='mine'?'Your albums':'Community memories'}</h3><p>{feedMode==='mine'?'Albums you own or can contribute to.':'Public moments shared by the community.'}</p></div></div><div className="flex gap-2"><button className="filter-button" onClick={()=>setFeedMode('mine')}>My collection</button><button className="filter-button" onClick={()=>setFeedMode('community')}>Community</button></div></div>
-      {feedMode==='mine'?<div className="memory-album-grid">{albums.map(a=><article className="memory-album-card" key={a.id}><button className="memory-album-open" onClick={()=>void openAlbum(a)}>{a.coverUrl?<img className="memory-album-cover" src={a.coverUrl} alt=""/>:<div className="memory-album-cover memory-cover-empty"><Camera size={28}/></div>}<span className="memory-album-overlay"><b>{a.title}</b><small>{a.mediaCount} memories · {a.visibility}</small></span></button><button type="button" className="memory-bookmark" aria-label="Bookmark album" onClick={()=>void toggleSaved('save_album',a.id)}><Bookmark size={17} fill={savedAlbums.includes(a.id)?'currentColor':'none'}/></button></article>)}</div>:<div className="memory-album-grid">{communityAlbums.map(a=><div className="memory-album-card" key={a.id}><button className="w-full text-left" onClick={()=>void openAlbum({...a,creatorName:a.displayName,visibility:'public',mediaCount:0} as Album)}><Camera size={22}/><b>{a.title}</b><small>Shared by {a.displayName??'Community member'}</small><small>{a.description}</small><span className="text-xs font-semibold text-lime-300">Open memories</span></button></div>)}</div>}
+      {feedMode==='mine'?<div className="memory-album-grid">{albums.map(a=><article className="memory-album-card" key={a.id}><button className="memory-album-open" onClick={()=>void openAlbum(a)}>{a.coverUrl?<img className="memory-album-cover" src={a.coverUrl} alt=""/>:<div className="memory-album-cover memory-cover-empty"><Camera size={28}/></div>}<span className="memory-album-overlay"><b>{a.title}</b><small>{a.mediaCount} memories · {a.visibility}</small></span></button><button type="button" className="memory-bookmark" aria-label="Bookmark album" onClick={()=>void toggleSaved('save_album',a.id)}><Bookmark size={17} fill={savedAlbums.includes(a.id)?'currentColor':'none'}/></button></article>)}</div>:<div className="memory-album-grid">{communityAlbums.map(a=><article className="memory-album-card" key={a.id}><button className="memory-album-open" onClick={()=>void openAlbum({...a,creatorName:a.displayName,visibility:'public'} as Album)}>{a.coverUrl?<img className="memory-album-cover" src={a.coverUrl} alt=""/>:<div className="memory-album-cover memory-cover-empty"><Camera size={28}/></div>}<span className="memory-album-overlay"><b>{a.title}</b><small>{a.mediaCount} memories · Public</small><small>Shared by {a.displayName??'Community member'}</small></span></button><button type="button" className="memory-bookmark" aria-label="Bookmark album" onClick={()=>void toggleSaved('save_album',a.id)}><Bookmark size={17} fill={savedAlbums.includes(a.id)?'currentColor':'none'}/></button></article>)}</div>}
       {feedMode==='mine'&&!albums.length&&<div className="empty-state"><Camera size={26}/><b>No albums yet</b><p>Create your first album, then add photos and videos from your camera roll.</p></div>}
     </>}
     {active&&<div className="memory-album-screen">
       <header className="memory-album-toolbar">
-        <button className="icon-button" aria-label="Back to memories" onClick={()=>{setActive(null);setFiles([]);window.history.pushState({},'','/')}}><ArrowLeft size={20}/></button>
+        <button className="icon-button" aria-label="Back to memories" onClick={()=>{setActive(null);setFiles([])}}><ArrowLeft size={20}/></button>
         <div className="memory-album-title"><h2>{active.title}</h2><small>{media.length} memories · {active.visibility}</small></div>
         <div className="memory-album-actions">
           <button className="icon-button" aria-label="Invite collaborators" onClick={()=>setShowInvite(v=>!v)}><Users size={18}/></button>

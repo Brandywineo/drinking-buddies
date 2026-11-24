@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { getDb } from '../db'
@@ -49,7 +49,16 @@ export const Route = createFileRoute('/api/memories/social')({
         albumId ? db.select({ id: memoryComments.id, albumId: memoryComments.albumId, mediaId: memoryComments.mediaId, parentId: memoryComments.parentId, body: memoryComments.body, createdAt: memoryComments.createdAt, userId: memoryComments.userId, displayName: profiles.displayName }).from(memoryComments).leftJoin(profiles, eq(profiles.userId, memoryComments.userId)).where(and(eq(memoryComments.albumId, albumId), isNull(memoryComments.deletedAt))).orderBy(desc(memoryComments.createdAt)).limit(200) : Promise.resolve([]),
         communityFeed ? db.select({ id: memoryAlbums.id, title: memoryAlbums.title, description: memoryAlbums.description, createdAt: memoryAlbums.createdAt, creatorId: memoryAlbums.creatorId, displayName: profiles.displayName }).from(memoryAlbums).leftJoin(profiles, eq(profiles.userId, memoryAlbums.creatorId)).where(eq(memoryAlbums.visibility, 'public')).orderBy(desc(memoryAlbums.createdAt)).limit(100) : Promise.resolve([]),
       ])
-      return jsonOk({ savedAlbums: albums, savedMedia: media, notifications, invitations: invites, comments, communityAlbums })
+      const communityWithCovers = await Promise.all(communityAlbums.map(async (album) => {
+        const [mediaCount] = await db.select({ value: count() }).from(memoryMedia).where(and(
+          eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved'), isNull(memoryMedia.deletedAt),
+        ))
+        const [cover] = await db.select({ id: memoryMedia.id }).from(memoryMedia).where(and(
+          eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved'), isNull(memoryMedia.deletedAt),
+        )).orderBy(desc(memoryMedia.createdAt)).limit(1)
+        return { ...album, mediaCount: mediaCount?.value ?? 0, coverUrl: cover?.id ? '/api/memories/media/' + cover.id : null }
+      }))
+      return jsonOk({ savedAlbums: albums, savedMedia: media, notifications, invitations: invites, comments, communityAlbums: communityWithCovers })
     },
     POST: async ({ request }) => {
       try {
