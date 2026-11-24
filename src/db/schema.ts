@@ -811,3 +811,13 @@ export const memoryNotifications = pgTable('memory_notifications', {
   index('memory_notifications_user_created_idx').on(table.userId, table.createdAt),
   index('memory_notifications_user_read_idx').on(table.userId, table.readAt),
 ])
+
+export const memoryFollowers = pgTable('memory_followers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  creatorId: uuid('creator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  followerId: uuid('follower_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_followers_creator_follower_uq').on(table.creatorId, table.followerId),
+  index('memory_followers_follower_idx').on(table.followerId),
+])
