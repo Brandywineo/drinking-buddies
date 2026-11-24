@@ -12,7 +12,7 @@ import { canAccessMemoryAlbum } from '../lib/community-media'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
-const inputSchema = z.discriminatedUnion('action', [
+const inputSchema = z.union([
   z.object({ action: z.literal('save_album'), albumId: z.string().uuid(), saved: z.boolean() }),
   z.object({ action: z.literal('save_media'), mediaId: z.string().uuid(), saved: z.boolean() }),
   z.object({ action: z.literal('comment'), albumId: z.string().uuid().optional(), mediaId: z.string().uuid().optional(), parentId: z.string().uuid().optional(), body: z.string().trim().min(1).max(1200) }).refine(v => Boolean(v.albumId) !== Boolean(v.mediaId)),
@@ -23,7 +23,7 @@ const inputSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('remove_tag'), tagId: z.string().uuid() }),
   z.object({ action: z.literal('share'), albumId: z.string().uuid(), expiresInDays: z.number().int().min(1).max(90).optional() }),
   z.object({ action: z.literal('revoke_share'), shareId: z.string().uuid() }),
-]).strict()
+])
 
 export const Route = createFileRoute('/api/memories/social')({
   server: { handlers: {
