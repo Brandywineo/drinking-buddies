@@ -6,7 +6,10 @@ import { goingOutPlans, matches, profileLikes, profilePasses, profiles, userBloc
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
-const querySchema = z.object({ area: z.string().trim().max(120).optional(), mode: z.enum(['social', 'friendship', 'dating']).default('social') })
+const querySchema = z.object({
+  area: z.string().trim().max(120).optional(),
+  mode: z.enum(['social', 'friendship', 'dating']).default('social'),
+})
 
 export const Route = createFileRoute('/api/discovery')({
   server: { handlers: { GET: async ({ request }) => {
@@ -15,16 +18,29 @@ export const Route = createFileRoute('/api/discovery')({
       if (!userId) return jsonError('Sign in to discover people.', 401, 'UNAUTHENTICATED')
       const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
       if (!parsed.success) return jsonError('Invalid discovery filters.', 400, 'INVALID_FILTERS')
+
       const db = getDb()
-      const [viewer] = await db.select({ gender: profiles.gender, preferredGenders: profiles.preferredGenders })
-        .from(profiles).where(eq(profiles.userId, userId)).limit(1)
+      const [viewer] = await db.select({
+        gender: profiles.gender,
+        preferredGenders: profiles.preferredGenders,
+        interests: profiles.interests,
+        preferredDrinks: profiles.preferredDrinks,
+        homeArea: profiles.homeArea,
+      }).from(profiles).where(eq(profiles.userId, userId)).limit(1)
       if (!viewer) return jsonError('Complete your profile before discovering people.', 409, 'PROFILE_REQUIRED')
 
       const intentFilter = parsed.data.mode === 'friendship' ? 'friendship' : parsed.data.mode === 'dating' ? 'social_and_dating' : null
       const candidates = await db.select({
-        id: users.id, displayName: profiles.displayName, avatarUrl: sql<string | null>`CASE WHEN ${profiles.avatarUrl} IS NOT NULL THEN '/api/profile/photo/' || ${users.id}::text ELSE NULL END`, bio: profiles.bio, gender: profiles.gender,
-        preferredGenders: profiles.preferredGenders, interests: profiles.interests, preferredDrinks: profiles.preferredDrinks,
-        connectionIntents: profiles.connectionIntents, homeArea: profiles.homeArea,
+        id: users.id,
+        displayName: profiles.displayName,
+        avatarUrl: sql<string | null>`CASE WHEN ${profiles.avatarUrl} IS NOT NULL THEN '/api/profile/photo/' || ${users.id}::text ELSE NULL END`,
+        bio: profiles.bio,
+        gender: profiles.gender,
+        preferredGenders: profiles.preferredGenders,
+        interests: profiles.interests,
+        preferredDrinks: profiles.preferredDrinks,
+        connectionIntents: profiles.connectionIntents,
+        homeArea: profiles.homeArea,
         locationVisibility: profiles.locationVisibility,
         displayPopularityScore: profiles.displayPopularityScore,
         displayReputationScore: profiles.displayReputationScore,
@@ -32,7 +48,9 @@ export const Route = createFileRoute('/api/discovery')({
         reputationScore: sql<number>`(SELECT COUNT(*)::int * 10 FROM meetup_bookings WHERE attendee_id = ${users.id} AND status = 'attended') + (SELECT COUNT(*)::int * 5 FROM meetups WHERE host_id = ${users.id})`,
       }).from(profiles).innerJoin(users, eq(users.id, profiles.userId))
         .where(and(
-          eq(users.status, 'active'), eq(profiles.discoverable, true), ne(users.id, userId),
+          eq(users.status, 'active'),
+          eq(profiles.discoverable, true),
+          ne(users.id, userId),
           ...(intentFilter ? [sql`${profiles.connectionIntents} @> ${JSON.stringify([intentFilter])}::jsonb`] : []),
           ...(parsed.data.area ? [eq(profiles.locationVisibility, 'public'), ilike(profiles.homeArea, `%${parsed.data.area}%`)] : []),
           notExists(db.select({ id: profileLikes.id }).from(profileLikes).where(and(eq(profileLikes.fromUserId, userId), eq(profileLikes.toUserId, users.id)))),
@@ -46,24 +64,67 @@ export const Route = createFileRoute('/api/discovery')({
           ))),
           notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, users.id)))),
           notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, users.id), eq(userBlocks.blockedId, userId)))),
-        )).limit(100)
+        )).limit(500)
 
       const candidateIds = candidates.map((candidate) => candidate.id)
-      const activePlans = candidateIds.length ? await db.select().from(goingOutPlans).where(and(inArray(goingOutPlans.userId, candidateIds), eq(goingOutPlans.status, 'active'), gt(goingOutPlans.endsAt, new Date()))) : []
+      const now = new Date()
+      const activePlans = candidateIds.length
+        ? await db.select().from(goingOutPlans).where(and(
+            inArray(goingOutPlans.userId, candidateIds),
+            eq(goingOutPlans.status, 'active'),
+            gt(goingOutPlans.endsAt, now),
+          ))
+        : []
       const planByUser = new Map(activePlans.map((plan) => [plan.userId, plan]))
       const viewerPrefs = Array.isArray(viewer.preferredGenders) ? viewer.preferredGenders : []
-      const compatible = candidates.filter((candidate) => {
+      const viewerInterests = new Set((Array.isArray(viewer.interests) ? viewer.interests : []).map((value) => value.toLowerCase()))
+      const viewerDrinks = new Set((Array.isArray(viewer.preferredDrinks) ? viewer.preferredDrinks : []).map((value) => value.toLowerCase()))
+
+      const ranked = candidates.filter((candidate) => {
         const candidatePrefs = Array.isArray(candidate.preferredGenders) ? candidate.preferredGenders : []
         const viewerGenderOk = viewerPrefs.length === 0 || (candidate.gender ? viewerPrefs.includes(candidate.gender) : false)
         const candidateGenderOk = candidatePrefs.length === 0 || (viewer.gender ? candidatePrefs.includes(viewer.gender) : false)
         return viewerGenderOk && candidateGenderOk
-      }).sort((a, b) => Number(planByUser.has(b.id)) - Number(planByUser.has(a.id)) || (planByUser.get(a.id)?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER) - (planByUser.get(b.id)?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER)).slice(0, 30)
-      return jsonOk({ profiles: compatible.map(({ preferredGenders: _privatePreferences, locationVisibility, displayPopularityScore, displayReputationScore, popularityScore, reputationScore, ...profile }) => ({
-        ...profile,
-        goingOut: planByUser.has(profile.id) ? { venueName: planByUser.get(profile.id)!.venueName, area: planByUser.get(profile.id)!.area, startsAt: planByUser.get(profile.id)!.startsAt, endsAt: planByUser.get(profile.id)!.endsAt, drinks: planByUser.get(profile.id)!.drinks, drinkQuantity: planByUser.get(profile.id)!.drinkQuantity, intention: planByUser.get(profile.id)!.intention, note: planByUser.get(profile.id)!.note } : null,
-        homeArea: locationVisibility === 'public' ? profile.homeArea : null,
-        ...(displayPopularityScore ? { popularityScore: Number(popularityScore ?? 0) } : {}),
-        ...(displayReputationScore ? { reputationScore: Number(reputationScore ?? 0) } : {}),
+      }).map((candidate) => {
+        const plan = planByUser.get(candidate.id)
+        const visibleArea = candidate.locationVisibility === 'public' ? candidate.homeArea : null
+        const sameArea = Boolean(viewer.homeArea && visibleArea && viewer.homeArea.trim().toLowerCase() === visibleArea.trim().toLowerCase())
+        const sharedDrinks = (Array.isArray(candidate.preferredDrinks) ? candidate.preferredDrinks : [])
+          .filter((value) => viewerDrinks.has(value.toLowerCase()))
+        const sharedInterests = (Array.isArray(candidate.interests) ? candidate.interests : [])
+          .filter((value) => viewerInterests.has(value.toLowerCase()))
+        const signals: string[] = []
+        if (plan) signals.push('Going out')
+        if (sameArea) signals.push('Same area')
+        if (sharedDrinks.length) signals.push('Shared drinks')
+        if (sharedInterests.length) signals.push('Shared interests')
+        const score = (plan ? 100 : 0) + (sameArea ? 30 : 0) + sharedDrinks.length * 8 + sharedInterests.length * 4
+        return { candidate, plan, visibleArea, signals, score }
+      }).sort((a, b) => b.score - a.score || (a.plan?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.plan?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER)).slice(0, 30)
+
+      return jsonOk({ profiles: ranked.map(({ candidate, plan, visibleArea, signals }) => ({
+        id: candidate.id,
+        displayName: candidate.displayName,
+        avatarUrl: candidate.avatarUrl,
+        bio: candidate.bio,
+        gender: candidate.gender,
+        interests: candidate.interests,
+        preferredDrinks: candidate.preferredDrinks,
+        connectionIntents: candidate.connectionIntents,
+        homeArea: visibleArea,
+        discoverySignals: signals,
+        goingOut: plan ? {
+          venueName: plan.venueName,
+          area: plan.area,
+          startsAt: plan.startsAt,
+          endsAt: plan.endsAt,
+          drinks: plan.drinks,
+          drinkQuantity: plan.drinkQuantity,
+          intention: plan.intention,
+          note: plan.note,
+        } : null,
+        ...(candidate.displayPopularityScore ? { popularityScore: Number(candidate.popularityScore ?? 0) } : {}),
+        ...(candidate.displayReputationScore ? { reputationScore: Number(candidate.reputationScore ?? 0) } : {}),
       })) })
     } catch (error) {
       console.error('Discovery failed', error)
