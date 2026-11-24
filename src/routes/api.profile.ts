@@ -18,6 +18,7 @@ const profileSchema = z.object({
   preferredGenders: z.array(z.string().trim().min(1).max(32)).max(10).optional(),
   connectionIntents: z.array(z.enum(['drinking_buddies', 'friendship', 'social_and_dating', 'group_outings'])).max(4).optional(),
   interests: z.array(z.string().trim().min(1).max(40)).max(30).optional(),
+  preferredDrinks: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   homeArea: z.string().trim().max(120).nullable().optional(),
 }).strict()
 

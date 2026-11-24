@@ -68,11 +68,31 @@ export const profiles = pgTable('profiles', {
   preferredGenders: jsonb('preferred_genders').$type<string[]>().notNull().default([]),
   connectionIntents: jsonb('connection_intents').$type<string[]>().notNull().default([]),
   interests: jsonb('interests').$type<string[]>().notNull().default([]),
+  preferredDrinks: jsonb('preferred_drinks').$type<string[]>().notNull().default([]),
   homeArea: varchar('home_area', { length: 120 }),
   ...timestamps,
 }, (table) => [
   uniqueIndex('profiles_user_id_uq').on(table.userId),
   index('profiles_discoverable_idx').on(table.discoverable),
+])
+
+export const goingOutPlans = pgTable('going_out_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  venueName: varchar('venue_name', { length: 160 }),
+  area: varchar('area', { length: 120 }),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+  drinks: jsonb('drinks').$type<string[]>().notNull().default([]),
+  drinkQuantity: varchar('drink_quantity', { length: 80 }),
+  intention: varchar('intention', { length: 32 }).notNull().default('company'),
+  note: varchar('note', { length: 300 }),
+  status: varchar('status', { length: 16 }).notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('going_out_plans_user_uq').on(table.userId),
+  index('going_out_plans_active_window_idx').on(table.status, table.startsAt, table.endsAt),
 ])
 
 export const authIdentities = pgTable('auth_identities', {

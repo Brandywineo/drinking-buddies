@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, ilike, ne, notExists, or, isNull, sql } from 'drizzle-orm'
+import { and, eq, ilike, ne, notExists, or, isNull, sql, inArray, gt } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { matches, profileLikes, profilePasses, profiles, userBlocks, users } from '../db/schema'
+import { goingOutPlans, matches, profileLikes, profilePasses, profiles, userBlocks, users } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute('/api/discovery')({
       const intentFilter = parsed.data.mode === 'friendship' ? 'friendship' : parsed.data.mode === 'dating' ? 'social_and_dating' : null
       const candidates = await db.select({
         id: users.id, displayName: profiles.displayName, avatarUrl: sql<string | null>`CASE WHEN ${profiles.avatarUrl} IS NOT NULL THEN '/api/profile/photo/' || ${users.id}::text ELSE NULL END`, bio: profiles.bio, gender: profiles.gender,
-        preferredGenders: profiles.preferredGenders, interests: profiles.interests,
+        preferredGenders: profiles.preferredGenders, interests: profiles.interests, preferredDrinks: profiles.preferredDrinks,
         connectionIntents: profiles.connectionIntents, homeArea: profiles.homeArea,
         locationVisibility: profiles.locationVisibility,
         displayPopularityScore: profiles.displayPopularityScore,
@@ -48,15 +48,19 @@ export const Route = createFileRoute('/api/discovery')({
           notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, users.id), eq(userBlocks.blockedId, userId)))),
         )).limit(100)
 
+      const candidateIds = candidates.map((candidate) => candidate.id)
+      const activePlans = candidateIds.length ? await db.select().from(goingOutPlans).where(and(inArray(goingOutPlans.userId, candidateIds), eq(goingOutPlans.status, 'active'), gt(goingOutPlans.endsAt, new Date()))) : []
+      const planByUser = new Map(activePlans.map((plan) => [plan.userId, plan]))
       const viewerPrefs = Array.isArray(viewer.preferredGenders) ? viewer.preferredGenders : []
       const compatible = candidates.filter((candidate) => {
         const candidatePrefs = Array.isArray(candidate.preferredGenders) ? candidate.preferredGenders : []
         const viewerGenderOk = viewerPrefs.length === 0 || (candidate.gender ? viewerPrefs.includes(candidate.gender) : false)
         const candidateGenderOk = candidatePrefs.length === 0 || (viewer.gender ? candidatePrefs.includes(viewer.gender) : false)
         return viewerGenderOk && candidateGenderOk
-      }).slice(0, 30)
+      }).sort((a, b) => Number(planByUser.has(b.id)) - Number(planByUser.has(a.id)) || (planByUser.get(a.id)?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER) - (planByUser.get(b.id)?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER)).slice(0, 30)
       return jsonOk({ profiles: compatible.map(({ preferredGenders: _privatePreferences, locationVisibility, displayPopularityScore, displayReputationScore, popularityScore, reputationScore, ...profile }) => ({
         ...profile,
+        goingOut: planByUser.has(profile.id) ? { venueName: planByUser.get(profile.id)!.venueName, area: planByUser.get(profile.id)!.area, startsAt: planByUser.get(profile.id)!.startsAt, endsAt: planByUser.get(profile.id)!.endsAt, drinks: planByUser.get(profile.id)!.drinks, drinkQuantity: planByUser.get(profile.id)!.drinkQuantity, intention: planByUser.get(profile.id)!.intention, note: planByUser.get(profile.id)!.note } : null,
         homeArea: locationVisibility === 'public' ? profile.homeArea : null,
         ...(displayPopularityScore ? { popularityScore: Number(popularityScore ?? 0) } : {}),
         ...(displayReputationScore ? { reputationScore: Number(reputationScore ?? 0) } : {}),

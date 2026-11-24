@@ -120,6 +120,13 @@
       "when": 1796256000000,
       "tag": "0016_memories_social",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1796256000001,
+      "tag": "0017_intent_based_discovery",
+      "breakpoints": true
     }
   ]
 }

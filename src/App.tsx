@@ -18,6 +18,8 @@ type MemberProfile = {
   bio: string | null
   gender: string | null
   interests: string[]
+  preferredDrinks: string[]
+  goingOut?: { venueName: string | null; area: string | null; startsAt: string; endsAt: string; drinks: string[]; drinkQuantity: string | null; intention: string; note: string | null } | null
   connectionIntents: string[]
   homeArea: string | null
   avatarUrl?: string | null
@@ -36,6 +38,7 @@ type OwnProfile = {
   preferredGenders: string[]
   connectionIntents: string[]
   interests: string[]
+  preferredDrinks: string[]
   homeArea: string | null
 }
 type SessionUser = { id: string; email: string; displayName: string | null }
@@ -82,10 +85,23 @@ function App() {
   const [profileGender, setProfileGender] = useState('')
   const [profileArea, setProfileArea] = useState('')
   const [profileInterests, setProfileInterests] = useState('')
+  const [profileDrinks, setProfileDrinks] = useState('')
+  const [goingOutPlan, setGoingOutPlan] = useState<any>(null)
+  const [showGoingOutForm, setShowGoingOutForm] = useState(false)
+  const [outingVenue, setOutingVenue] = useState('')
+  const [outingArea, setOutingArea] = useState('')
+  const [outingStart, setOutingStart] = useState('')
+  const [outingEnd, setOutingEnd] = useState('')
+  const [outingDrinks, setOutingDrinks] = useState<string[]>([])
+  const [outingQuantity, setOutingQuantity] = useState('')
+  const [outingIntention, setOutingIntention] = useState('company')
+  const [outingNote, setOutingNote] = useState('')
   const [profileIntents, setProfileIntents] = useState<string[]>(['drinking_buddies'])
   const [preferredGenders, setPreferredGenders] = useState<string[]>([])
   const [locationVisibility, setLocationVisibility] = useState<'private' | 'matches' | 'public'>('private')
   const [discoverable, setDiscoverable] = useState(true)
+
+  async function loadGoingOutPlan() { const response = await fetch('/api/going-out'); const result = await response.json(); if (response.ok) setGoingOutPlan(result.data?.plan ?? null) }
 
   async function loadFavorites() {
     const response = await fetch('/api/favorites')
@@ -143,6 +159,8 @@ function App() {
           setProfileGender(ownProfile.gender ?? '')
           setProfileArea(ownProfile.homeArea ?? '')
           setProfileInterests(ownProfile.interests.join(', '))
+          setProfileDrinks((ownProfile.preferredDrinks ?? []).join(', '))
+          void loadGoingOutPlan()
           setProfileIntents(ownProfile.connectionIntents)
           setPreferredGenders(ownProfile.preferredGenders)
           setLocationVisibility(ownProfile.locationVisibility)
@@ -184,6 +202,18 @@ function App() {
       notify(cause instanceof Error ? cause.message : 'Could not send your interest.')
     }
   }
+
+  const publishGoingOut = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!outingStart || !outingEnd) { notify('Choose when your outing starts and ends.'); return }
+    try {
+      const response = await fetch('/api/going-out', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ venueName: outingVenue || null, area: outingArea || profile?.homeArea || null, startsAt: new Date(outingStart).toISOString(), endsAt: new Date(outingEnd).toISOString(), drinks: outingDrinks, drinkQuantity: outingQuantity || null, intention: outingIntention, note: outingNote || null }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not publish your outing.')
+      setGoingOutPlan(result.data.plan); setShowGoingOutForm(false); await loadDiscovery(); notify('Your going-out plan is live in discovery.')
+    } catch (cause) { notify(cause instanceof Error ? cause.message : 'Could not publish your outing.') }
+  }
+  const cancelGoingOut = async () => { const response = await fetch('/api/going-out', { method: 'DELETE' }); const result = await response.json(); if (!response.ok) { notify(result.error?.message ?? 'Could not cancel your plan.'); return } setGoingOutPlan(null); await loadDiscovery(); notify('Your outing is no longer shown in discovery.') }
 
   const toggleFavorite = async (id: string) => {
     const saved = favoritePeople.includes(id)
@@ -244,6 +274,7 @@ function App() {
           gender: profileGender || null,
           homeArea: profileArea || null,
           interests: profileInterests.split(',').map((item) => item.trim()).filter(Boolean),
+          preferredDrinks: profileDrinks.split(',').map((item) => item.trim()).filter(Boolean),
           connectionIntents: profileIntents,
           preferredGenders,
           discoverable,
@@ -272,7 +303,7 @@ function App() {
     try {
       const response = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         displayName: profile.displayName, bio: profile.bio, gender: profile.gender, homeArea: homeArea || null,
-        interests: profile.interests, connectionIntents: profile.connectionIntents, preferredGenders: profile.preferredGenders,
+        interests: profile.interests, preferredDrinks: profile.preferredDrinks ?? [], connectionIntents: profile.connectionIntents, preferredGenders: profile.preferredGenders,
         discoverable: profile.discoverable, locationVisibility: profile.locationVisibility,
         displayPopularityScore: profile.displayPopularityScore, displayReputationScore: profile.displayReputationScore,
       }) })
@@ -367,6 +398,20 @@ function App() {
             <div className="discover-snap-container" aria-label="People and community discovery">
               <section className="discover-snap-panel discover-people-panel" aria-label="People discovery">
             <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>{discoveryMode === 'dating' ? 'People open to dating' : discoveryMode === 'friendship' ? 'People looking for friendship' : 'People near you'}</h2><p>Say hello to someone new. Match first, then chat.</p></div><div className="flex flex-wrap items-center gap-2"><div className="discovery-layout-toggle" role="group" aria-label="Discovery layout"><button className={discoveryLayout === 'deck' ? 'active' : ''} onClick={() => setDiscoveryLayout('deck')}>Swipe deck</button><button className={discoveryLayout === 'grid' ? 'active' : ''} onClick={() => setDiscoveryLayout('grid')}>Grid</button></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div></div>
+            <section className="going-out-panel">
+              <div className="going-out-panel-head"><div><span className="eyebrow">MAKE A PLAN</span><h3>{goingOutPlan ? 'Your outing is live' : 'Who’s going out?'}</h3><p>{goingOutPlan ? 'People with similar plans will see you first.' : 'Share when and where you’re heading out, and find people doing the same.'}</p></div><button className="primary-button" onClick={() => setShowGoingOutForm(value => !value)}>{goingOutPlan ? 'Edit plan' : 'I’m going out'}</button></div>
+              {goingOutPlan && <div className="going-out-active"><b>{goingOutPlan.venueName || 'Plan not decided'}{goingOutPlan.area ? ' · '+goingOutPlan.area : ''}</b><span>{new Date(goingOutPlan.startsAt).toLocaleString('en-KE',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Nairobi'})} – {new Date(goingOutPlan.endsAt).toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Nairobi'})}</span><span>{(goingOutPlan.drinks ?? []).join(' · ') || 'No drink preference'}{goingOutPlan.drinkQuantity ? ' · '+goingOutPlan.drinkQuantity : ''}</span><button className="text-button" onClick={() => void cancelGoingOut()}>Cancel outing</button></div>}
+              {showGoingOutForm && <form className="going-out-form" onSubmit={publishGoingOut}>
+                <label>Venue (optional)<input value={outingVenue} onChange={event=>setOutingVenue(event.target.value)} placeholder="e.g. Taki Taki, Mitini Lounge"/></label>
+                <label>Area<input value={outingArea} onChange={event=>setOutingArea(event.target.value)} placeholder={profile?.homeArea ?? 'e.g. Kilimani'} /></label>
+                <div className="going-out-form-row"><label>Starts (Kenya time)<input type="datetime-local" required value={outingStart} onChange={event=>setOutingStart(event.target.value)}/></label><label>Ends (Kenya time)<input type="datetime-local" required value={outingEnd} onChange={event=>setOutingEnd(event.target.value)}/></label></div>
+                <fieldset><legend>What are you drinking?</legend><div className="going-out-drinks">{['Beer','KC','Mzinga','Muratina','Whisky','Vodka','Gin','Cocktails','Wine','Cider','Non-alcoholic'].map(drink=><label key={drink}><input type="checkbox" checked={outingDrinks.includes(drink)} onChange={event=>setOutingDrinks(current=>event.target.checked?[...current,drink]:current.filter(item=>item!==drink))}/>{drink}</label>)}</div></fieldset>
+                <label>Quantity (optional)<input value={outingQuantity} onChange={event=>setOutingQuantity(event.target.value)} placeholder="e.g. 2 beers"/></label>
+                <label>Looking for<select value={outingIntention} onChange={event=>setOutingIntention(event.target.value)}><option value="company">Company</option><option value="buddy">A drinking buddy</option><option value="friends">New friends</option><option value="open">Open to anyone</option></select></label>
+                <label>Note (optional)<textarea value={outingNote} onChange={event=>setOutingNote(event.target.value)} maxLength={300} placeholder="What kind of night are you planning?"/></label>
+                <div className="going-out-form-actions"><button type="button" className="filter-button" onClick={()=>setShowGoingOutForm(false)}>Cancel</button><button className="primary-button" type="submit">Publish outing</button></div>
+              </form>}
+            </section>
             {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => { setArea(e.target.value); void loadDiscovery(e.target.value) }}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option><option>Riverside</option><option>Parklands</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery(''); void loadDiscovery('All areas') }}>Clear</button></div>}
             {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : discoveryLayout === 'deck' ? <DiscoveryDeck people={visibleBuddies} favoritePeople={favoritePeople} onLike={(id) => void like(id)} onPass={(id) => void pass(id)} onFavorite={(id) => void toggleFavorite(id)} /> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id} onTouchStart={(event) => { const touch = event.touches[0]; swipeStart.current = { userId: person.id, x: touch.clientX, y: touch.clientY } }} onTouchEnd={(event) => { const start = swipeStart.current; swipeStart.current = null; if (!start || start.userId !== person.id) return; const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.2) { if (dx > 0) void like(person.id); else void pass(person.id) } }}><div className="person-photo" style={{ backgroundImage: person.avatarUrl ? `linear-gradient(180deg, transparent, #11130fe8), url(${person.avatarUrl})` : 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label={favoritePeople.includes(person.id) ? 'Remove favourite ' + person.displayName : 'Favourite ' + person.displayName} onClick={() => void toggleFavorite(person.id)}><Star size={16} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}<p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
             {!discoveryLoading && !discoveryError && visibleBuddies.length === 0 && <div className="empty-state"><Search size={24} /><b>No community profiles to show yet</b><span>Try another area, or check back as more people complete their profiles.</span></div>}
@@ -401,6 +446,7 @@ function App() {
         <label>About you<textarea rows={3} value={profileBio} onChange={(e) => setProfileBio(e.target.value)} maxLength={500} placeholder="A little about the people and plans you enjoy…" /></label>
         <div className="form-row"><label>Gender<input value={profileGender} onChange={(e) => setProfileGender(e.target.value)} maxLength={32} placeholder="Optional" /></label><label>Home area<input value={profileArea} onChange={(e) => setProfileArea(e.target.value)} maxLength={120} placeholder="e.g. Westlands" /></label></div>
         <label>Interests<input value={profileInterests} onChange={(e) => setProfileInterests(e.target.value)} placeholder="Live music, food, football…" /><small>Separate interests with commas.</small></label>
+        <label>Favourite drinks<input value={profileDrinks} onChange={(e) => setProfileDrinks(e.target.value)} placeholder="Beer, KC, Mzinga, Muratina…" /><small>Separate preferences with commas. This helps people find common ground.</small></label>
         <label>What are you looking for?<select value={profileIntents[0] ?? 'drinking_buddies'} onChange={(e) => setProfileIntents([e.target.value])}><option value="drinking_buddies">Drinking buddies</option><option value="friendship">New friendships</option><option value="social_and_dating">Social and dating</option><option value="group_outings">Group outings</option></select></label>
         <label>Who would you like to discover?<input value={preferredGenders.join(', ')} onChange={(e) => setPreferredGenders(e.target.value.split(',').map((item) => item.trim()).filter(Boolean))} placeholder="Leave blank for everyone" /><small>Optional. Enter preferences separated by commas.</small></label>
         <label>Home area visibility<select value={locationVisibility} onChange={(e) => setLocationVisibility(e.target.value as 'private' | 'matches' | 'public')}><option value="private">Private — only used for filtering</option><option value="matches">Matches only</option><option value="public">Public — shown on my profile card</option></select></label>
@@ -443,11 +489,13 @@ function DiscoveryDeck({ people, favoritePeople, onLike, onPass, onFavorite }: {
       if (Math.abs(dx) > 85 && Math.abs(dx) > Math.abs(dy) * 1.25) move(dx > 0 ? 'like' : 'pass')
     }}>
       <div className="deck-photo" style={{ backgroundImage: person.avatarUrl ? 'linear-gradient(180deg, transparent 35%, #11130ff2), url(' + JSON.stringify(person.avatarUrl) + ')' : 'linear-gradient(135deg, #596341, #171914)' }}>
-        <span className="availability"><i/> Community member</span>
+        <span className="availability"><i/> {person.goingOut ? "Going out" : "Discoverable"}</span>
         <button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label="Toggle favourite" onClick={() => onFavorite(person.id)}><Star size={17} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'}/></button>
         <div className="deck-person-title"><h3>{person.displayName}</h3><span><MapPin size={14}/> {person.homeArea ?? 'Area not shared'}</span></div>
       </div>
       <div className="deck-person-details">
+        {person.goingOut && <div className="going-out-card-context"><b>{person.goingOut.venueName || 'Going out'}{person.goingOut.area ? ' · '+person.goingOut.area : ''}</b><span>{new Date(person.goingOut.startsAt).toLocaleString('en-KE',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Nairobi'})} – {new Date(person.goingOut.endsAt).toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Nairobi'})}</span><span>{(person.goingOut.drinks ?? []).join(' · ')}{person.goingOut.drinkQuantity ? ' · '+person.goingOut.drinkQuantity : ''}</span>{person.goingOut.note && <small>{person.goingOut.note}</small>}</div>}
+        {(person.preferredDrinks?.length ?? 0)>0 && <div className="interest-tags">{person.preferredDrinks.map(drink=><span key={drink}>{drink}</span>)}</div>}
         <div className="flex flex-wrap gap-2"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}</div>
         <p>{person.bio || 'Open to meeting good people and making new connections.'}</p>
         <div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div>
