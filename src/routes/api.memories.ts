@@ -33,7 +33,8 @@ export const Route = createFileRoute('/api/memories')({
         for (const album of albums) {
           if (!await canAccessMemoryAlbum(album.id, userId)) continue
           const [mediaCount] = await db.select({ value: count() }).from(memoryMedia).where(and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved')))
-          const [cover] = await db.select({ url: memoryMedia.url }).from(memoryMedia).where(and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved'))).orderBy(desc(memoryMedia.createdAt)).limit(1)\n          visible.push({ ...album, mediaCount: mediaCount?.value ?? 0, coverUrl: cover?.url ?? null })
+          const [cover] = await db.select({ url: memoryMedia.url }).from(memoryMedia).where(and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved'))).orderBy(desc(memoryMedia.createdAt)).limit(1)
+          visible.push({ ...album, mediaCount: mediaCount?.value ?? 0, coverUrl: cover?.url ?? null })
         }
         const tags = await db.select({
           id: memoryTags.id, status: memoryTags.status, mediaId: memoryTags.mediaId,
