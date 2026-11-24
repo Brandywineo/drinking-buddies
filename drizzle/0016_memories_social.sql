@@ -112,3 +112,15 @@ CREATE TABLE memory_notifications (
 CREATE INDEX memory_notifications_user_created_idx ON memory_notifications(user_id,created_at);
 --> statement-breakpoint
 CREATE INDEX memory_notifications_user_read_idx ON memory_notifications(user_id,read_at);
+
+--> statement-breakpoint
+CREATE TABLE memory_followers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  follower_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX memory_followers_creator_follower_uq ON memory_followers(creator_id,follower_id);
+--> statement-breakpoint
+CREATE INDEX memory_followers_follower_idx ON memory_followers(follower_id);
