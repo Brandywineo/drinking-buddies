@@ -231,7 +231,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     <Notice value={notice}/>
     {!signedIn?<div className="empty-state"><h3>Sign in to create and share memories.</h3></div>:<>
       
-      {showCreate&&<div className="memory-compose-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><form className="hub-form memory-compose-sheet" onSubmit={createAlbum}>
+      {!active&&showCreate&&<div className="memory-compose-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><form className="hub-form memory-compose-sheet" onSubmit={createAlbum}>
         <div className="flex flex-wrap items-center justify-between gap-2"><h3>Create a memory album</h3><span className="intent-pill">Photos + MP4 video</span></div>
         <div className="form-row"><label>Album title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="e.g. Friday at Westlands"/></label><label>Who can see it?<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option value="members">Meetup / squad members</option><option value="public">Everyone · public community feed</option><option value="followers">Followers</option><option value="meetup">Meetup attendees</option><option value="squad">Squad members</option><option value="invited">Invited people only</option><option value="private">Only me</option></select></label></div>
         <label>Description<textarea maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What made this night memorable?"/></label>
@@ -246,7 +246,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     </>}
     {active&&<div className="memory-album-screen">
       <header className="memory-album-toolbar">
-        <button className="icon-button" aria-label="Back to memories" onClick={()=>{setActive(null);setFiles([])}}><ArrowLeft size={20}/></button>
+        <button className="icon-button" aria-label="Back to memories" disabled={uploading} onClick={()=>{setActive(null);setFiles([])}}><ArrowLeft size={20}/></button>
         <div className="memory-album-title"><h2>{active.title}</h2><small>{media.length} memories · {active.visibility}</small></div>
         <div className="memory-album-actions">
           <button className="icon-button" aria-label="Invite collaborators" onClick={()=>setShowInvite(v=>!v)}><Users size={18}/></button>
