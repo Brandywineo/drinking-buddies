@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { and, createHash, eq, gt, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '../../db'
-import { memoryMedia, memoryShareLinks } from '../../db/schema'
+import { getDb } from '../db'
+import { memoryMedia, memoryShareLinks } from '../db/schema'
 import { readCommunityFile } from '../../lib/community-media'
 import { jsonError } from '../../lib/http'
 
