@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Camera, MapPin, Plus, Upload, X } from 'lucide-react'
+import { ArrowLeft, Bookmark, Camera, Heart, MapPin, Plus, Share2, Users, Upload, X } from 'lucide-react'
 
 type Venue = { id: string; name: string; description: string | null; category: string; address: string; area: string; city: string; websiteUrl: string | null; coverPhotoUrl?: string | null }
 type OwnedVenue = { id:string; name:string; approvalStatus:string; isPublished:boolean; area:string; city:string; createdAt:string }
-type Album = { id: string; title: string; description: string | null; visibility: string; mediaCount: number; creatorName: string | null }
+type Album = { id: string; title: string; description: string | null; visibility: string; mediaCount: number; creatorName: string | null; coverUrl?: string | null }
 type Media = { id: string; mediaKind: string; caption: string | null; url: string; uploaderName: string | null; moderationStatus?: string }
 
 function Notice({ value }: { value: string }) { return value ? <p className="hub-notice" role="status">{value}</p> : null }
@@ -84,6 +84,8 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [uploading,setUploading] = useState(false)
   const [loadingAlbum,setLoadingAlbum] = useState(false)
   const [showCreate,setShowCreate] = useState(false)
+  const [showUpload,setShowUpload] = useState(false)
+  const [showInvite,setShowInvite] = useState(false)
   const [savedAlbums,setSavedAlbums] = useState<string[]>([])
   const [savedMedia,setSavedMedia] = useState<string[]>([])
   const [comments,setComments] = useState<{id:string;body:string;displayName:string|null;userId:string;parentId:string|null}[]>([])
@@ -131,10 +133,10 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     if(r.ok)void load()
   }
   async function openAlbum(album:Album) {
-    setActive(album);setLoadingAlbum(true);setMedia([])
+    setActive(album);setShowUpload(false);setShowInvite(false);setLoadingAlbum(true);setMedia([]);window.history.pushState({memoryAlbumId:album.id},'', '/memories/'+album.id)
     const [r,socialResponse]=await Promise.all([fetch('/api/memories/'+album.id,{credentials:'include'}),fetch('/api/memories/social?albumId='+album.id,{credentials:'include'})])
     const [j,social]=await Promise.all([r.json(),socialResponse.json()])
-    if(r.ok)setMedia(j.data?.media??[])
+    if(r.ok){setMedia(j.data?.media??[]);setActive(current=>current?{...current,mediaCount:(j.data?.media??[]).length,coverUrl:(j.data?.media??[]).find((item:Media)=>item.mediaKind!=='video')?.url??(j.data?.media??[])[0]?.url??current.coverUrl}:current)}
     if(socialResponse.ok)setComments(social.data?.comments??[])
     else setNotice(j.error?.message??'Could not load album.')
     setLoadingAlbum(false)
@@ -142,7 +144,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   async function upload(event:FormEvent) {
     event.preventDefault()
     if(!active||!files.length||uploading)return
-    setUploading(true)
+    setUploading(true);setShowUpload(false)
     let uploaded=0
     const failedFiles:File[]=[]
     for(const file of files.slice(0,20)){
@@ -203,39 +205,38 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   }
 
   return <section className="community-hub">
-    <div className="section-heading"><div><div className="eyebrow">PARTY MEMORIES</div><h2>Keep the good nights</h2><p>Build a visual diary of meetups, squads and nights worth remembering.</p></div><Camera size={24}/></div>
+    {!active&&<div className="section-heading memory-home-heading"><div><div className="eyebrow">PARTY MEMORIES</div><h2>Keep the good nights</h2><p>Build a visual diary of meetups, squads and nights worth remembering.</p></div><button type="button" className="icon-button memory-camera-action" aria-label="Create album" onClick={()=>setShowCreate(v=>!v)}><Camera size={22}/></button></div>}
     <Notice value={notice}/>
     {!signedIn?<div className="empty-state"><h3>Sign in to create and share memories.</h3></div>:<>
-      <button className="primary-button" type="button" onClick={()=>setShowCreate(v=>!v)}><Plus size={16}/> {showCreate?'Close album form':'Create album'}</button>
-      {showCreate&&<form className="hub-form" onSubmit={createAlbum}>
+      
+      {showCreate&&<div className="memory-compose-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><form className="hub-form memory-compose-sheet" onSubmit={createAlbum}>
         <div className="flex flex-wrap items-center justify-between gap-2"><h3>Create a memory album</h3><span className="intent-pill">Photos + MP4 video</span></div>
         <div className="form-row"><label>Album title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="e.g. Friday at Westlands"/></label><label>Who can see it?<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option value="members">Meetup / squad members</option><option value="public">Everyone · public community feed</option><option value="followers">Followers</option><option value="meetup">Meetup attendees</option><option value="squad">Squad members</option><option value="invited">Invited people only</option><option value="private">Only me</option></select></label></div>
         <label>Description<textarea maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What made this night memorable?"/></label>
         <div className="form-row"><label>Link a meetup (optional)<select value={form.meetupId} onChange={e=>setForm({...form,meetupId:e.target.value,squadId:''})}><option value="">No meetup</option>{meetupOptions.map(x=><option key={x.id} value={x.id}>{x.title} · {x.area}</option>)}</select></label><label>Link a squad (optional)<select value={form.squadId} onChange={e=>setForm({...form,squadId:e.target.value,meetupId:''})}><option value="">No squad</option>{squadOptions.map(x=><option key={x.id} value={x.id}>{x.name}{x.area?` · ${x.area}`:''}</option>)}</select></label></div>
-        <button className="primary-button"><Plus size={16}/> Create album</button>
-      </form>}
+        <div className="flex gap-2"><button type="button" className="filter-button" onClick={()=>setShowCreate(false)}>Cancel</button><button className="primary-button"><Plus size={16}/> Create album</button></div>
+      </form></div>}
       {pendingTags.length>0&&<div className="hub-form"><h3>Tag requests waiting for you</h3>{pendingTags.map(tag=><div className="hub-deal" key={tag.id}><p>Someone requested to tag you in a memory.</p><button className="filter-button" onClick={()=>void decideTag(tag.id,'accept')}>Accept</button> <button className="filter-button" onClick={()=>void decideTag(tag.id,'decline')}>Decline</button></div>)}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="section-heading"><div><div className="eyebrow">MEMORIES FEED</div><h3>{feedMode==='mine'?'Your albums':'Community memories'}</h3><p>{feedMode==='mine'?'Albums you own or can contribute to.':'Public moments shared by the community.'}</p></div></div><div className="flex gap-2"><button className="filter-button" onClick={()=>setFeedMode('mine')}>My collection</button><button className="filter-button" onClick={()=>setFeedMode('community')}>Community</button></div></div>
-      {feedMode==='mine'?<div className="memory-album-grid">{albums.map(a=><div className="memory-album-card" key={a.id}><button className="w-full text-left" onClick={()=>void openAlbum(a)}><Camera size={22}/><b>{a.title}</b><small>{a.mediaCount} approved memories · {a.visibility}</small><span className="text-xs font-semibold text-lime-300">Open album · Add memories <Upload size={13}/></span></button><button type="button" className="filter-button mt-2" onClick={()=>void toggleSaved('save_album',a.id)}>{savedAlbums.includes(a.id)?'Saved':'Bookmark album'}</button></div>)}</div>:<div className="memory-album-grid">{communityAlbums.map(a=><div className="memory-album-card" key={a.id}><button className="w-full text-left" onClick={()=>void openAlbum({...a,creatorName:a.displayName,visibility:'public',mediaCount:0} as Album)}><Camera size={22}/><b>{a.title}</b><small>Shared by {a.displayName??'Community member'}</small><small>{a.description}</small><span className="text-xs font-semibold text-lime-300">Open memories</span></button></div>)}</div>}
+      {feedMode==='mine'?<div className="memory-album-grid">{albums.map(a=><article className="memory-album-card" key={a.id}><button className="memory-album-open" onClick={()=>void openAlbum(a)}>{a.coverUrl?<img className="memory-album-cover" src={a.coverUrl} alt=""/>:<div className="memory-album-cover memory-cover-empty"><Camera size={28}/></div>}<span className="memory-album-overlay"><b>{a.title}</b><small>{a.mediaCount} memories · {a.visibility}</small></span></button><button type="button" className="memory-bookmark" aria-label="Bookmark album" onClick={()=>void toggleSaved('save_album',a.id)}><Bookmark size={17} fill={savedAlbums.includes(a.id)?'currentColor':'none'}/></button></article>)}</div>:<div className="memory-album-grid">{communityAlbums.map(a=><div className="memory-album-card" key={a.id}><button className="w-full text-left" onClick={()=>void openAlbum({...a,creatorName:a.displayName,visibility:'public',mediaCount:0} as Album)}><Camera size={22}/><b>{a.title}</b><small>Shared by {a.displayName??'Community member'}</small><small>{a.description}</small><span className="text-xs font-semibold text-lime-300">Open memories</span></button></div>)}</div>}
       {feedMode==='mine'&&!albums.length&&<div className="empty-state"><Camera size={26}/><b>No albums yet</b><p>Create your first album, then add photos and videos from your camera roll.</p></div>}
     </>}
-    {active&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setActive(null);setFiles([])}}}>
-      <div className="modal">
-        <div className="modal-head"><div><span className="eyebrow">PARTY MEMORIES</span><h2>{active.title}</h2><small>{media.length} visible memories</small></div><button className="icon-button" onClick={()=>{setActive(null);setFiles([])}}><X size={18}/></button></div>
-        <div className="flex flex-wrap gap-2"><button type="button" className="filter-button" onClick={()=>void reactToMemory()}>♥ Love this album</button><button type="button" className="filter-button" onClick={()=>void createShareLink()}>Share album link</button></div>{shareUrl&&<div className="hub-form"><label>Shareable album link<input readOnly value={shareUrl}/></label><button type="button" className="filter-button" onClick={()=>void navigator.clipboard.writeText(shareUrl)}>Copy link</button></div>}
-        <form className="hub-form" onSubmit={inviteCollaborator}><h3>Invite a collaborator</h3><label>User ID<input value={inviteUserId} onChange={e=>setInviteUserId(e.target.value)} placeholder="Paste the member user ID"/></label><button className="filter-button" disabled={!inviteUserId.trim()}>Send invitation</button></form>
-        <form className="hub-form" onSubmit={upload}>
-          <h3><Upload size={17}/> Add to this album</h3>
-          <label className="memory-file-picker">Choose photos or videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={e=>setFiles(Array.from(e.target.files??[]).slice(0,20))}/><small>Up to 20 files per batch · JPG, PNG, WebP or MP4</small></label>
-          {files.length>0&&<div className="grid gap-2 rounded-xl border border-white/10 p-3"><b>{files.length} selected</b>{files.map((file,index)=><div key={file.name+file.size+index} className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate">{file.type.startsWith('video/')?'▶':'▧'} {file.name}</span><button type="button" className="text-button" onClick={()=>setFiles(current=>current.filter((_,i)=>i!==index))}>Remove</button></div>)}</div>}
-          <label>Caption for this batch<input value={caption} maxLength={500} onChange={e=>setCaption(e.target.value)} placeholder="Add a note about these moments"/></label>
-          <button className="primary-button" disabled={!files.length||uploading}><Upload size={16}/>{uploading?'Uploading…':` Upload ${files.length||''} ${files.length===1?'memory':'memories'}`}</button>
-        </form>
-        <div className="section-heading"><div><div className="eyebrow">ALBUM GALLERY</div><h3>Shared moments</h3><p>New uploads remain visible to you while they await moderation.</p></div></div>
-        {loadingAlbum?<div className="empty-state">Loading memories…</div>:<div className="memory-gallery-grid">{media.map((item,index)=><div key={item.id} className={"memory-media-card "+(index===0?"memory-media-featured":"")}>{item.mediaKind==='video'?<video src={item.url} controls preload="metadata"/>:<img src={item.url} alt={item.caption??'Shared party memory'}/>}<small>{item.caption||'A moment worth keeping'}</small>{item.moderationStatus&&item.moderationStatus!=='approved'&&<small className="text-amber-200">Awaiting moderation</small>}<div className="flex items-center justify-between gap-2"><button type="button" className="text-button" onClick={()=>void toggleSaved('save_media',item.id)}>{savedMedia.includes(item.id)?'Saved':'Save media'}</button><button type="button" className="text-button" onClick={()=>void reactToMemory(item.id)}>♥ Love</button><button type="button" className="text-button" onClick={()=>void deleteMedia(item.id)}>Remove</button></div></div>)}</div>}
-        <section className="hub-form"><h3>Album conversation</h3><form onSubmit={postComment}><label>Leave a comment<input value={commentBody} onChange={e=>setCommentBody(e.target.value)} maxLength={1200} placeholder="Share a thought about this night…"/></label><button className="primary-button" disabled={!commentBody.trim()}>Post comment</button></form>{comments.map(comment=><div className="hub-deal" key={comment.id}><b>{comment.displayName??"Member"}</b><p>{comment.body}</p></div>)}</section>
-        {!loadingAlbum&&!media.length&&<div className="empty-state"><Camera size={24}/><b>No memories in this album yet</b><p>Choose photos or videos above to start your gallery.</p></div>}
-      </div>
+    {active&&<div className="memory-album-screen">
+      <header className="memory-album-toolbar">
+        <button className="icon-button" aria-label="Back to memories" onClick={()=>{setActive(null);setFiles([]);window.history.pushState({},'','/')}}><ArrowLeft size={20}/></button>
+        <div className="memory-album-title"><h2>{active.title}</h2><small>{media.length} memories · {active.visibility}</small></div>
+        <div className="memory-album-actions">
+          <button className="icon-button" aria-label="Invite collaborators" onClick={()=>setShowInvite(v=>!v)}><Users size={18}/></button>
+          <button className="icon-button" aria-label="Add memories" onClick={()=>setShowUpload(v=>!v)}><Camera size={19}/></button>
+          <button className="icon-button" aria-label="Share album" onClick={()=>void createShareLink()}><Share2 size={18}/></button>
+          <button className="icon-button" aria-label="Love album" onClick={()=>void reactToMemory()}><Heart size={18}/></button>
+        </div>
+      </header>
+      {showInvite&&<form className="hub-form memory-inline-panel" onSubmit={inviteCollaborator}><div className="memory-panel-heading"><b>Invite collaborator</b><button type="button" className="icon-button" onClick={()=>setShowInvite(false)}><X size={16}/></button></div><label>Member user ID<input value={inviteUserId} onChange={e=>setInviteUserId(e.target.value)} placeholder="Paste member user ID"/></label><button className="primary-button" disabled={!inviteUserId.trim()}>Send invitation</button></form>}
+      {showUpload&&<form className="hub-form memory-inline-panel" onSubmit={upload}><div className="memory-panel-heading"><b>Add to this album</b><button type="button" className="icon-button" onClick={()=>setShowUpload(false)}><X size={16}/></button></div><label className="memory-file-picker">Choose photos or videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={e=>setFiles(Array.from(e.target.files??[]).slice(0,20))}/><small>Up to 20 files · JPG, PNG, WebP or MP4</small></label>{files.length>0&&<b>{files.length} files selected</b>}<label>Caption<input value={caption} maxLength={500} onChange={e=>setCaption(e.target.value)} placeholder="Add a note about these moments"/></label><button className="primary-button" disabled={!files.length||uploading}><Upload size={16}/>{uploading?'Uploading…':'Upload '+files.length+' memories'}</button></form>}
+      {shareUrl&&<div className="memory-share-strip"><span>Album link copied</span><button className="text-button" onClick={()=>void navigator.clipboard.writeText(shareUrl)}>Copy link</button></div>}
+      {loadingAlbum?<div className="empty-state">Loading memories…</div>:media.length>0?<div className="memory-gallery-grid">{media.map(item=><article key={item.id} className="memory-media-card">{item.mediaKind==='video'?<video src={item.url} controls preload="metadata"/>:<img src={item.url} alt={item.caption??'Shared party memory'}/>}<div className="memory-media-actions"><small>{item.caption||'A moment worth keeping'}</small><button type="button" className="text-button" aria-label="Save memory" onClick={()=>void toggleSaved('save_media',item.id)}><Bookmark size={15} fill={savedMedia.includes(item.id)?'currentColor':'none'}/></button><button type="button" className="text-button" aria-label="Love memory" onClick={()=>void reactToMemory(item.id)}><Heart size={15}/></button>{item.moderationStatus&&item.moderationStatus!=='approved'&&<small className="text-amber-200">Pending</small>}</div></article>)}</div>:<div className="memory-empty-gallery"><Camera size={30}/><b>No memories yet</b><span>Capture and add the moments that made this night.</span><button className="primary-button" onClick={()=>setShowUpload(true)}><Camera size={16}/> Add first memory</button></div>}
+      <section className="memory-conversation"><div className="memory-panel-heading"><h3>Album conversation</h3><span>{comments.length}</span></div><form onSubmit={postComment}><input value={commentBody} onChange={e=>setCommentBody(e.target.value)} maxLength={1200} placeholder="Leave a comment…"/><button className="primary-button" disabled={!commentBody.trim()}>Post</button></form>{comments.map(comment=><div className="hub-deal" key={comment.id}><b>{comment.displayName??'Member'}</b><p>{comment.body}</p></div>)}</section>
     </div>}
   </section>
 }
