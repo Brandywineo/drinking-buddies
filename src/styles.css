@@ -364,3 +364,56 @@ button{cursor:pointer}
   .discovery-mode-trigger{max-width:112px;overflow:hidden;text-overflow:ellipsis}
   .discover-snap-panel{padding-top:13px}
 }
+
+
+/* Party Memories — media-first collection and dedicated album view */
+.memory-home-heading{align-items:center}
+.memory-camera-action{width:44px;height:44px;border-radius:50%;color:#d8f36a}
+.memory-compose-backdrop{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:#000a}
+.memory-compose-sheet{width:min(100%,620px);max-height:88dvh;overflow:auto;border-radius:20px 20px 12px 12px;box-shadow:0 24px 80px #000b}
+.memory-album-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.memory-album-card{position:relative;min-width:0;overflow:hidden;padding:0;border:1px solid #34392b;border-radius:16px;background:#191b16;box-shadow:0 12px 32px #0003}
+.memory-album-open{position:relative;display:block;width:100%;height:250px;overflow:hidden;padding:0;border:0;background:#24291d;text-align:left}
+.memory-album-cover{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s}
+.memory-album-open:hover .memory-album-cover{transform:scale(1.04)}
+.memory-cover-empty{display:grid;place-items:center;color:#d8f36a;background:radial-gradient(circle at 50% 30%,#424b2e,#1a1d16 70%)}
+.memory-album-overlay{position:absolute;inset:auto 0 0;display:grid;gap:6px;padding:38px 15px 15px;background:linear-gradient(transparent,#080a07eF);color:#fff}
+.memory-album-overlay b{font:800 17px Manrope,sans-serif}
+.memory-album-overlay small{color:#d0d3c5;font-size:10px;text-transform:capitalize}
+.memory-bookmark{position:absolute;top:11px;right:11px;display:grid;place-items:center;width:36px;height:36px;border:1px solid #ffffff55;border-radius:50%;background:#1118;color:#fff;backdrop-filter:blur(8px)}
+.memory-bookmark.saved{color:#d8f36a;border-color:#d8f36a}
+.memory-album-screen{display:grid;gap:18px;min-height:70vh}
+.memory-album-toolbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:12px;padding:10px 0 14px;border-bottom:1px solid #303229;background:#10110f}
+.memory-album-title{display:grid;flex:1;min-width:0;gap:3px}
+.memory-album-title h2{overflow:hidden;margin:0;font:800 clamp(17px,3vw,23px) Manrope,sans-serif;text-overflow:ellipsis;white-space:nowrap}
+.memory-album-title small{color:#9da28f;font-size:10px;text-transform:capitalize}
+.memory-album-actions{display:flex;align-items:center;gap:4px}
+.memory-album-actions .icon-button,.memory-album-toolbar>.icon-button{width:38px;height:38px}
+.memory-inline-panel{padding:15px}
+.memory-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.memory-panel-heading h3{margin:0}
+.memory-share-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 13px;border:1px solid #424a31;border-radius:10px;background:#20251a;color:#d8f36a;font-size:11px}
+.memory-empty-gallery{display:grid;justify-items:center;gap:10px;padding:55px 20px;border:1px dashed #454b37;border-radius:16px;background:linear-gradient(145deg,#1b1e17,#141611);color:#d8f36a;text-align:center}
+.memory-empty-gallery b{color:#f1f2e9;font:800 17px Manrope}
+.memory-empty-gallery span{color:#9fa493;font-size:11px}
+.memory-gallery-grid{columns:3 190px;column-gap:12px}
+.memory-gallery-grid .memory-media-card{display:inline-block;width:100%;margin:0 0 12px;break-inside:avoid;overflow:hidden;border:1px solid #34392b;border-radius:13px;background:#191b16}
+.memory-gallery-grid .memory-media-card img,.memory-gallery-grid .memory-media-card video{display:block;width:100%;height:auto;max-height:620px;aspect-ratio:auto;object-fit:cover}
+.memory-media-actions{display:flex;align-items:center;gap:10px;padding:9px 10px}
+.memory-media-actions small{flex:1;min-width:0;color:#b6baa9;font-size:10px}
+.memory-media-actions .text-button{display:grid;place-items:center}
+.memory-conversation{display:grid;gap:12px;padding:16px;border:1px solid #30352a;border-radius:14px;background:#171914}
+.memory-conversation form{display:flex;gap:8px}
+.memory-conversation input{flex:1;min-width:0;padding:11px 12px;border:1px solid #383a30;border-radius:9px;background:#11130f;color:#f1f1e8}
+@media(max-width:700px){
+ .memory-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .memory-album-open{height:205px}
+ .memory-album-overlay{padding:30px 11px 12px}
+ .memory-album-overlay b{font-size:14px}
+ .memory-album-actions{gap:1px}
+ .memory-album-actions .icon-button,.memory-album-toolbar>.icon-button{width:34px;height:34px}
+ .memory-gallery-grid{columns:2 135px;column-gap:9px}
+ .memory-gallery-grid .memory-media-card{margin-bottom:9px}
+ .memory-album-toolbar{gap:6px}
+ .memory-conversation{padding:12px}
+}
