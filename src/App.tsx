@@ -50,6 +50,7 @@ function App() {
   const [tab, setTab] = useState<Tab>('discover')
   const [discoveryMode, setDiscoveryMode] = useState<'social' | 'friendship' | 'dating'>('social')
   const [discoveryLayout, setDiscoveryLayout] = useState<'deck' | 'grid'>('deck')
+  const [showDiscoveryModes, setShowDiscoveryModes] = useState(false)
   const swipeStart = useRef<{ userId: string; x: number; y: number } | null>(null)
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('All areas')
@@ -297,8 +298,8 @@ function App() {
         </a>
         <div className="sidebar-label">YOUR SPACE</div>
         <nav className="side-nav" aria-label="Main navigation">
+          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups" />
           <NavButton active={tab === 'discover'} onClick={() => setTab('discover')} icon={<Compass size={19} />} label="Discover" />
-          <NavButton active={tab === 'meetups'} onClick={() => setTab('meetups')} icon={<Users size={19} />} label="Meetups"  />
           <NavButton active={tab === 'community'} onClick={() => setTab('community')} icon={<CalendarDays size={19} />} label="Let's Go Out" />
           <NavButton active={tab === 'places'} onClick={() => setTab('places')} icon={<MapPin size={19} />} label="Places & events" />
           <NavButton active={tab === 'memories'} onClick={() => setTab('memories')} icon={<Camera size={19} />} label="Party Memories" />
@@ -329,6 +330,7 @@ function App() {
         </header>
 
         <div className="content-wrap">
+          {tab === 'meetups' && <>
           <section className="welcome-row">
             <div><div className="eyebrow"><span className="live-dot" /> YOUR CITY, YOUR PEOPLE</div><h1>Good company is <em>closer</em> than you think.</h1><p className="welcome-copy">Find your people, make a plan, and see where the night takes you.</p></div>
             <button className="primary-button create-button" onClick={() => setTab('meetups')}><Plus size={18} /> Create a meetup</button>
@@ -340,27 +342,40 @@ function App() {
             <div className="stat"><span className="stat-icon"><MapPin size={17} /></span><span><b>Kenya</b><small>local venues</small></span></div>
             <div className="stat stat-note"><span className="online-avatars"><i>M</i><i>B</i><i>N</i></span><span><b>People are making plans</b><small>See what’s happening around you</small></span></div>
           </section>
+          </>}
 
-          <div className="section-tabs" role="tablist" aria-label="Discovery sections">
-            <button role="tab" aria-selected={tab === 'discover'} className={tab === 'discover' ? 'selected' : ''} onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
-            <button role="tab" aria-selected={tab === 'meetups'} className={tab === 'meetups' ? 'selected' : ''} onClick={() => setTab('meetups')}>Meetups</button>
-            <button role="tab" aria-selected={tab === 'places'} className={tab === 'places' ? 'selected' : ''} onClick={() => setTab('places')}>Places & events</button>
-            <button role="tab" aria-selected={tab === 'memories'} className={tab === 'memories' ? 'selected' : ''} onClick={() => setTab('memories')}>Party Memories</button>
-          </div>
+
+          {tab === 'discover' && <div className="section-tabs" role="tablist" aria-label="Discovery sections">
+            <button role="tab" aria-selected="true" className="selected" onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
+            <button role="tab" aria-selected="false" onClick={() => setTab('meetups')}>Meetups</button>
+            <button role="tab" aria-selected="false" onClick={() => setTab('places')}>Places & events</button>
+            <button role="tab" aria-selected="false" onClick={() => setTab('memories')}>Party Memories</button>
+            <div className="discovery-mode-dropdown">
+              <button className="discovery-mode-trigger" aria-haspopup="menu" aria-expanded={showDiscoveryModes} onClick={() => setShowDiscoveryModes((value) => !value)}>
+                {discoveryMode === 'social' ? 'Social discovery' : discoveryMode === 'friendship' ? 'Friendship' : 'Dating'} <ChevronDown size={14} />
+              </button>
+              {showDiscoveryModes && <div className="discovery-mode-menu" role="menu">
+                <button role="menuitem" className={discoveryMode === 'social' ? 'active' : ''} onClick={() => { setDiscoveryMode('social'); setShowDiscoveryModes(false); void loadDiscovery(area, 'social') }}>Social discovery</button>
+                <button role="menuitem" className={discoveryMode === 'friendship' ? 'active' : ''} onClick={() => { setDiscoveryMode('friendship'); setShowDiscoveryModes(false); void loadDiscovery(area, 'friendship') }}>Friendship</button>
+                <button role="menuitem" className={discoveryMode === 'dating' ? 'active' : ''} onClick={() => { setDiscoveryMode('dating'); setShowDiscoveryModes(false); void loadDiscovery(area, 'dating') }}>Dating</button>
+              </div>}
+            </div>
+          </div>}
 
           {tab === 'discover' && <>
             {authStatus === 'loading' ? <div className="empty-state"><b>Loading your account…</b></div> : authStatus === 'signed_out' ? <div className="empty-state"><ShieldCheck size={26} /><h2>Sign in to meet your people.</h2><p>Discover real community members, save your preferences and connect through mutual matches.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in to discover <ArrowRight size={15} /></button><p>New here? <a href="/register">Create an account</a></p></div> : !profile ? <div className="empty-state"><b>Complete your profile to get started.</b><p>Tell the community a little about yourself and set your discovery preferences.</p><button className="primary-button" onClick={() => setShowProfileForm(true)}>Set up my profile <ArrowRight size={15} /></button></div> : <>
-            <section className="tonight-banner">
-              <div className="tonight-copy"><span className="banner-kicker">THE CITY IS YOURS</span><h2>Who's up for<br />tonight?</h2><p>Find people who are free, nearby and in the mood to connect.</p><button className="banner-button" onClick={() => setTab('meetups')}>Explore tonight’s meetups <ArrowRight size={15} /></button></div>
-              <div className="banner-image"><div className="banner-image-overlay" /><div className="floating-tag"><span className="live-dot" /> Find your next connection</div></div>
-              <div className="banner-orb orb-one" /><div className="banner-orb orb-two" />
-            </section>
-            <div className="discovery-modes" role="tablist" aria-label="Choose your discovery experience"><button className={discoveryMode === 'social' ? 'active' : ''} onClick={() => { setDiscoveryMode('social'); void loadDiscovery(area, 'social') }}>Social discovery</button><button className={discoveryMode === 'friendship' ? 'active' : ''} onClick={() => { setDiscoveryMode('friendship'); void loadDiscovery(area, 'friendship') }}>Friendship</button><button className={discoveryMode === 'dating' ? 'active' : ''} onClick={() => { setDiscoveryMode('dating'); void loadDiscovery(area, 'dating') }}>Dating</button></div>
+            <div className="discover-snap-container" aria-label="People and community discovery">
+              <section className="discover-snap-panel discover-people-panel" aria-label="People discovery">
             <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>{discoveryMode === 'dating' ? 'People open to dating' : discoveryMode === 'friendship' ? 'People looking for friendship' : 'People near you'}</h2><p>Say hello to someone new. Match first, then chat.</p></div><div className="flex flex-wrap items-center gap-2"><div className="discovery-layout-toggle" role="group" aria-label="Discovery layout"><button className={discoveryLayout === 'deck' ? 'active' : ''} onClick={() => setDiscoveryLayout('deck')}>Swipe deck</button><button className={discoveryLayout === 'grid' ? 'active' : ''} onClick={() => setDiscoveryLayout('grid')}>Grid</button></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div></div>
             {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => { setArea(e.target.value); void loadDiscovery(e.target.value) }}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option><option>Riverside</option><option>Parklands</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery(''); void loadDiscovery('All areas') }}>Clear</button></div>}
             {discoveryLoading ? <div className="empty-state"><b>Finding people…</b></div> : discoveryError ? <div className="empty-state"><b>We couldn’t load discovery.</b><span>{discoveryError}</span><button className="primary-button" onClick={() => loadDiscovery()}>Try again</button></div> : discoveryLayout === 'deck' ? <DiscoveryDeck people={visibleBuddies} favoritePeople={favoritePeople} onLike={(id) => void like(id)} onPass={(id) => void pass(id)} onFavorite={(id) => void toggleFavorite(id)} /> : <div className="people-grid">{visibleBuddies.map((person) => <article className="person-card" key={person.id} onTouchStart={(event) => { const touch = event.touches[0]; swipeStart.current = { userId: person.id, x: touch.clientX, y: touch.clientY } }} onTouchEnd={(event) => { const start = swipeStart.current; swipeStart.current = null; if (!start || start.userId !== person.id) return; const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y; if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.2) { if (dx > 0) void like(person.id); else void pass(person.id) } }}><div className="person-photo" style={{ backgroundImage: person.avatarUrl ? `linear-gradient(180deg, transparent, #11130fe8), url(${person.avatarUrl})` : 'linear-gradient(135deg, #414b2d, #171914)' }}><span className="availability"><i /> Community member</span><button className="heart-button" aria-label={'Like ' + person.displayName} onClick={() => void like(person.id)}><Heart size={18} /></button><button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label={favoritePeople.includes(person.id) ? 'Remove favourite ' + person.displayName : 'Favourite ' + person.displayName} onClick={() => void toggleFavorite(person.id)}><Star size={16} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'} /></button><div className="photo-gradient" /><div className="person-title"><h3>{person.displayName}</h3><span><MapPin size={13} /> {person.homeArea ?? 'Area not shared'}</span></div></div><div className="person-info"><span className="intent-pill">{intentLabels[person.connectionIntents[0]] ?? 'Open to meeting'}</span>{person.popularityScore !== undefined && <span className="score-pill">Popularity {person.popularityScore}</span>}{person.reputationScore !== undefined && <span className="score-pill">Reputation {person.reputationScore}</span>}<p>{person.bio || 'Open to meeting good people and making new connections.'}</p><div className="interest-tags">{person.interests.map((interest) => <span key={interest}>{interest}</span>)}</div><div className="card-actions"><button className="pass-button" onClick={() => void pass(person.id)}><X size={16} /> Pass</button><button className="interest-button" onClick={() => void like(person.id)}><Heart size={15} /> Say hello</button></div></div></article>)}</div>}
             {!discoveryLoading && !discoveryError && visibleBuddies.length === 0 && <div className="empty-state"><Search size={24} /><b>No community profiles to show yet</b><span>Try another area, or check back as more people complete their profiles.</span></div>}
             <div className="privacy-strip"><ShieldCheck size={18} /><span><b>Your location stays yours.</b> People see only the area or meetup location you choose to share.</span><button onClick={() => setShowProfileForm(true)}>Privacy settings</button></div>
+              </section>
+              <section className="discover-snap-panel discover-community-panel" aria-label="Community discovery">
+                <GoOutHub currentUserId={currentUser?.id ?? null} signedIn={authStatus === 'signed_in'} onSignIn={() => window.location.assign('/login')} />
+              </section>
+            </div>
             </>}
           </>}
 
@@ -395,7 +410,7 @@ function App() {
       </form></div></div>}
 
       {toast && <div className="toast"><Check size={16} /> {toast}</div>}
-      <div className="mobile-nav"><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('community')} className={tab === 'community' ? 'active' : ''}><CalendarDays size={19} /><span>Let's Go Out</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('memories')} className={tab === 'memories' ? 'active' : ''}><Camera size={19} /><span>Memories</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
+      <div className="mobile-nav"><button onClick={() => setTab('meetups')} className={tab === 'meetups' ? 'active' : ''}><Users size={19} /><span>Meetups</span></button><button onClick={() => setTab('discover')} className={tab === 'discover' ? 'active' : ''}><Compass size={19} /><span>Discover</span></button><button onClick={() => setTab('community')} className={tab === 'community' ? 'active' : ''}><CalendarDays size={19} /><span>Let's Go Out</span></button><button onClick={() => setTab('places')} className={tab === 'places' ? 'active' : ''}><MapPin size={19} /><span>Places</span></button><button onClick={() => setTab('memories')} className={tab === 'memories' ? 'active' : ''}><Camera size={19} /><span>Memories</span></button><button onClick={() => setTab('messages')} className={tab === 'messages' ? 'active' : ''}><MessageCircle size={19} /><span>Chats</span></button></div>
     </div>
   )
 }
