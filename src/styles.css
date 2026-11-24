@@ -439,3 +439,25 @@ button{cursor:pointer}
 .memory-upload-info small{color:#9da28f;font-size:9px}
 .memory-upload-track{height:4px;overflow:hidden;border-radius:8px;background:#30352a}
 .memory-upload-track i{display:block;height:100%;border-radius:8px;background:#d8f36a;transition:width .15s}
+
+
+/* Intent-based People Discovery and Going Out plans */
+.going-out-panel{display:grid;gap:13px;margin:0 0 16px;padding:16px;border:1px solid #3b442d;border-radius:16px;background:linear-gradient(135deg,#20271a,#171914)}
+.going-out-panel-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.going-out-panel-head h3{margin:3px 0 4px;color:#f0f1e8;font:800 17px Manrope,sans-serif}
+.going-out-panel-head p{margin:0;color:#aeb39f;font-size:11px;line-height:1.5}
+.going-out-active{display:grid;gap:5px;padding:12px;border:1px solid #414a31;border-radius:11px;background:#11140f;color:#d8f36a;font-size:11px}
+.going-out-active span{color:#c0c5b5}
+.going-out-form{display:grid;gap:11px;padding:14px;border:1px solid #414a31;border-radius:12px;background:#11140f}
+.going-out-form label{display:grid;gap:6px;color:#d9ddce;font-size:11px}
+.going-out-form input,.going-out-form select,.going-out-form textarea{width:100%;min-width:0;padding:10px 11px;border:1px solid #3a4030;border-radius:9px;background:#1a1d16;color:#f0f1e8}
+.going-out-form fieldset{min-width:0;padding:10px;border:1px solid #3a4030;border-radius:9px}
+.going-out-form legend{padding:0 5px;color:#d9ddce;font-size:11px}
+.going-out-form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.going-out-drinks{display:flex;flex-wrap:wrap;gap:7px}
+.going-out-drinks label{display:flex;grid-auto-flow:column;align-items:center;gap:6px;padding:7px 9px;border:1px solid #3b442d;border-radius:20px;background:#20271a}
+.going-out-drinks input{width:auto;accent-color:#d8f36a}
+.going-out-form-actions{display:flex;justify-content:flex-end;gap:8px}
+.going-out-card-context{display:grid;gap:5px;margin:9px 0;padding:11px;border:1px solid #424b31;border-radius:10px;background:#20271a;color:#d8f36a;font-size:11px}
+.going-out-card-context span,.going-out-card-context small{color:#c1c6b5}
+@media(max-width:540px){.going-out-panel{padding:12px}.going-out-panel-head{align-items:flex-start;flex-direction:column}.going-out-form-row{grid-template-columns:1fr}}
