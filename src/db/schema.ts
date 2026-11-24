@@ -707,3 +707,107 @@ export const venuePromotions = pgTable('venue_promotions', {
   index('venue_promotions_status_idx').on(table.status, table.createdAt),
   index('venue_promotions_venue_idx').on(table.venueId),
 ])
+
+
+// Memories social layer: contributors, saves, interactions, invitations and share links.
+export const memoryAlbumMembers = pgTable('memory_album_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').notNull().references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 16 }).notNull().default('contributor'),
+  status: varchar('status', { length: 16 }).notNull().default('invited'),
+  invitedById: uuid('invited_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_album_members_album_user_uq').on(table.albumId, table.userId),
+  index('memory_album_members_user_status_idx').on(table.userId, table.status),
+])
+
+export const memoryAlbumInvites = pgTable('memory_album_invites', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').notNull().references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  invitedUserId: uuid('invited_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  invitedById: uuid('invited_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: varchar('status', { length: 16 }).notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_album_invites_album_user_uq').on(table.albumId, table.invitedUserId),
+  index('memory_album_invites_user_status_idx').on(table.invitedUserId, table.status),
+])
+
+export const memoryAlbumSaves = pgTable('memory_album_saves', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').notNull().references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_album_saves_user_album_uq').on(table.userId, table.albumId),
+  index('memory_album_saves_user_created_idx').on(table.userId, table.createdAt),
+])
+
+export const memoryMediaSaves = pgTable('memory_media_saves', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  mediaId: uuid('media_id').notNull().references(() => memoryMedia.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_media_saves_user_media_uq').on(table.userId, table.mediaId),
+  index('memory_media_saves_user_created_idx').on(table.userId, table.createdAt),
+])
+
+export const memoryComments = pgTable('memory_comments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  mediaId: uuid('media_id').references(() => memoryMedia.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  parentId: uuid('parent_id'),
+  body: varchar('body', { length: 1200 }).notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('memory_comments_album_created_idx').on(table.albumId, table.createdAt),
+  index('memory_comments_media_created_idx').on(table.mediaId, table.createdAt),
+  index('memory_comments_parent_idx').on(table.parentId),
+])
+
+export const memoryReactions = pgTable('memory_reactions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  mediaId: uuid('media_id').references(() => memoryMedia.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reaction: varchar('reaction', { length: 24 }).notNull().default('like'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_reactions_album_user_uq').on(table.albumId, table.userId),
+  uniqueIndex('memory_reactions_media_user_uq').on(table.mediaId, table.userId),
+  index('memory_reactions_album_idx').on(table.albumId),
+  index('memory_reactions_media_idx').on(table.mediaId),
+])
+
+export const memoryShareLinks = pgTable('memory_share_links', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  albumId: uuid('album_id').notNull().references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+  createdById: uuid('created_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('memory_share_links_token_hash_uq').on(table.tokenHash),
+  index('memory_share_links_album_idx').on(table.albumId),
+])
+
+export const memoryNotifications = pgTable('memory_notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  albumId: uuid('album_id').references(() => memoryAlbums.id, { onDelete: 'cascade' }),
+  mediaId: uuid('media_id').references(() => memoryMedia.id, { onDelete: 'cascade' }),
+  kind: varchar('kind', { length: 32 }).notNull(),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('memory_notifications_user_created_idx').on(table.userId, table.createdAt),
+  index('memory_notifications_user_read_idx').on(table.userId, table.readAt),
+])
