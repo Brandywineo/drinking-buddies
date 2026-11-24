@@ -97,6 +97,8 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [communityAlbums,setCommunityAlbums] = useState<{id:string;title:string;description:string|null;displayName:string|null;createdAt:string}[]>([])
   const [feedMode,setFeedMode] = useState<'mine'|'community'>('mine')
 
+  useEffect(()=>{const handleBack=()=>{setActive(null);setShowUpload(false);setShowInvite(false);setFiles([])};window.addEventListener('popstate',handleBack);return()=>window.removeEventListener('popstate',handleBack)},[])
+
   async function load() {
     const r=await fetch('/api/memories',{credentials:'include'})
     const j=await r.json()
