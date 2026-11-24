@@ -80,11 +80,9 @@ export const Route = createFileRoute('/api/memories/social')({
           if (!albumId || !await canAccessMemoryAlbum(albumId, userId)) return jsonError('Memory not found.', 404, 'MEMORY_NOT_FOUND')
           if (v.parentId) {
             const [parent] = await db.select().from(memoryComments).where(and(eq(memoryComments.id, v.parentId), isNull(memoryComments.deletedAt))).limit(1)
-            if (!parent || (parent.albumId !== albumId && !parent.mediaId)) return jsonError('Reply target not found.', 404, 'COMMENT_NOT_FOUND')
+            if (!parent || parent.albumId !== (v.albumId ?? null) || parent.mediaId !== (v.mediaId ?? null)) return jsonError('Reply target must belong to the same album or media item.', 404, 'COMMENT_NOT_FOUND')
           }
           const [comment] = await db.insert(memoryComments).values({ albumId: v.albumId ?? null, mediaId: v.mediaId ?? null, userId, parentId: v.parentId ?? null, body: v.body }).returning()
-          const [album] = await db.select({ creatorId: memoryAlbums.creatorId }).from(memoryAlbums).where(eq(memoryAlbums.id, albumId)).limit(1)
-          if (album) await notify(album.creatorId, 'comment', albumId, v.mediaId)
           return jsonOk({ comment }, 201)
         }
         if (v.action === 'react') {
@@ -114,7 +112,10 @@ export const Route = createFileRoute('/api/memories/social')({
         if (v.action === 'tag') {
           const [item] = await db.select().from(memoryMedia).where(and(eq(memoryMedia.id, v.mediaId), isNull(memoryMedia.deletedAt))).limit(1)
           if (!item || !await canAccessMemoryAlbum(item.albumId, userId)) return jsonError('Media not found.', 404, 'MEDIA_NOT_FOUND')
-          if (item.uploaderId !== userId) return jsonError('Only the uploader can tag people in this memory.', 403, 'TAG_DENIED')
+          const [album] = await db.select({ creatorId: memoryAlbums.creatorId }).from(memoryAlbums).where(eq(memoryAlbums.id, item.albumId)).limit(1)
+          const [member] = await db.select({ id: memoryAlbumMembers.id }).from(memoryAlbumMembers).where(and(eq(memoryAlbumMembers.albumId, item.albumId), eq(memoryAlbumMembers.userId, userId), eq(memoryAlbumMembers.status, 'accepted'))).limit(1)
+          if (item.uploaderId !== userId && album?.creatorId !== userId && !member) return jsonError('Only an album owner, contributor or the uploader can tag people.', 403, 'TAG_DENIED')
+          if (v.userId === userId) return jsonError('You cannot tag yourself.', 400, 'INVALID_TAG')
           const [tag] = await db.insert(memoryTags).values({ mediaId: v.mediaId, taggedUserId: v.userId, taggedById: userId, status: 'accepted' }).onConflictDoUpdate({ target: [memoryTags.mediaId, memoryTags.taggedUserId], set: { status: 'accepted', taggedById: userId } }).returning()
           await notify(v.userId, 'mention', item.albumId, v.mediaId)
           return jsonOk({ tag }, 201)
@@ -134,7 +135,7 @@ export const Route = createFileRoute('/api/memories/social')({
           return jsonOk({ shareId: link.id, token, expiresAt }, 201)
         }
         if (v.action === 'revoke_share') {
-          const [link] = await db.update(memoryShareLinks).set({ revokedAt: new Date() }).where(eq(memoryShareLinks.id, v.shareId)).returning({ id: memoryShareLinks.id })
+          const [link] = await db.update(memoryShareLinks).set({ revokedAt: new Date() }).where(and(eq(memoryShareLinks.id, v.shareId), eq(memoryShareLinks.createdById, userId))).returning({ id: memoryShareLinks.id })
           if (!link) return jsonError('Share link not found.', 404, 'SHARE_NOT_FOUND')
           return jsonOk({ revoked: true })
         }
