@@ -86,6 +86,9 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   const [showCreate,setShowCreate] = useState(false)
   const [savedAlbums,setSavedAlbums] = useState<string[]>([])
   const [savedMedia,setSavedMedia] = useState<string[]>([])
+  const [comments,setComments] = useState<{id:string;body:string;displayName:string|null;userId:string;parentId:string|null}[]>([])
+  const [commentBody,setCommentBody] = useState('')
+  const [inviteUserId,setInviteUserId] = useState('')
 
   async function load() {
     const r=await fetch('/api/memories',{credentials:'include'})
@@ -124,9 +127,10 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
   }
   async function openAlbum(album:Album) {
     setActive(album);setLoadingAlbum(true);setMedia([])
-    const r=await fetch('/api/memories/'+album.id,{credentials:'include'})
-    const j=await r.json()
+    const [r,socialResponse]=await Promise.all([fetch('/api/memories/'+album.id,{credentials:'include'}),fetch('/api/memories/social?albumId='+album.id,{credentials:'include'})])
+    const [j,social]=await Promise.all([r.json(),socialResponse.json()])
     if(r.ok)setMedia(j.data?.media??[])
+    if(socialResponse.ok)setComments(social.data?.comments??[])
     else setNotice(j.error?.message??'Could not load album.')
     setLoadingAlbum(false)
   }
@@ -149,6 +153,32 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     await load()
     setUploading(false)
   }
+
+  async function postComment(event:FormEvent) {
+    event.preventDefault()
+    if(!active||!commentBody.trim())return
+    const response=await fetch('/api/memories/social',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'comment',albumId:active.id,body:commentBody.trim()})})
+    const result=await response.json()
+    if(!response.ok){setNotice(result.error?.message??'Could not post comment.');return}
+    setCommentBody('')
+    const refreshed=await fetch('/api/memories/social?albumId='+active.id,{credentials:'include'}).then(r=>r.json())
+    setComments(refreshed.data?.comments??[])
+  }
+  async function reactToMemory(mediaId?:string) {
+    if(!active)return
+    const response=await fetch('/api/memories/social',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'react',...(mediaId?{mediaId}:{albumId:active.id}),reaction:'love'})})
+    const result=await response.json()
+    setNotice(response.ok?'Reaction added.':result.error?.message??'Could not react.')
+  }
+  async function inviteCollaborator(event:FormEvent) {
+    event.preventDefault()
+    if(!active||!inviteUserId.trim())return
+    const response=await fetch('/api/memories/social',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'invite',albumId:active.id,userId:inviteUserId.trim()})})
+    const result=await response.json()
+    setNotice(response.ok?'Invitation sent.':result.error?.message??'Could not invite collaborator.')
+    if(response.ok)setInviteUserId('')
+  }
+
   async function deleteMedia(id:string) {
     const r=await fetch('/api/memories/media/'+id,{method:'DELETE',credentials:'include'})
     const j=await r.json()
@@ -163,7 +193,7 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
       <button className="primary-button" type="button" onClick={()=>setShowCreate(v=>!v)}><Plus size={16}/> {showCreate?'Close album form':'Create album'}</button>
       {showCreate&&<form className="hub-form" onSubmit={createAlbum}>
         <div className="flex flex-wrap items-center justify-between gap-2"><h3>Create a memory album</h3><span className="intent-pill">Photos + MP4 video</span></div>
-        <div className="form-row"><label>Album title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="e.g. Friday at Westlands"/></label><label>Who can see it?<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option value="members">Members</option><option value="private">Only me</option><option value="public">Public</option></select></label></div>
+        <div className="form-row"><label>Album title<input required minLength={3} maxLength={100} value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="e.g. Friday at Westlands"/></label><label>Who can see it?<select value={form.visibility} onChange={e=>setForm({...form,visibility:e.target.value})}><option value="members">Meetup / squad members</option><option value="public">Everyone · public community feed</option><option value="followers">Followers</option><option value="meetup">Meetup attendees</option><option value="squad">Squad members</option><option value="invited">Invited people only</option><option value="private">Only me</option></select></label></div>
         <label>Description<textarea maxLength={500} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="What made this night memorable?"/></label>
         <div className="form-row"><label>Meetup ID (optional)<input value={form.meetupId} onChange={e=>setForm({...form,meetupId:e.target.value,squadId:''})} placeholder="Link an approved meetup"/></label><label>Squad ID (optional)<input value={form.squadId} onChange={e=>setForm({...form,squadId:e.target.value,meetupId:''})} placeholder="Link a squad"/></label></div>
         <button className="primary-button"><Plus size={16}/> Create album</button>
@@ -176,6 +206,8 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
     {active&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setActive(null);setFiles([])}}}>
       <div className="modal">
         <div className="modal-head"><div><span className="eyebrow">PARTY MEMORIES</span><h2>{active.title}</h2><small>{media.length} visible memories</small></div><button className="icon-button" onClick={()=>{setActive(null);setFiles([])}}><X size={18}/></button></div>
+        <button type="button" className="filter-button" onClick={()=>void reactToMemory()}>♥ Love this album</button>
+        <form className="hub-form" onSubmit={inviteCollaborator}><h3>Invite a collaborator</h3><label>User ID<input value={inviteUserId} onChange={e=>setInviteUserId(e.target.value)} placeholder="Paste the member user ID"/></label><button className="filter-button" disabled={!inviteUserId.trim()}>Send invitation</button></form>
         <form className="hub-form" onSubmit={upload}>
           <h3><Upload size={17}/> Add to this album</h3>
           <label className="memory-file-picker">Choose photos or videos<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={e=>setFiles(Array.from(e.target.files??[]).slice(0,20))}/><small>Up to 20 files per batch · JPG, PNG, WebP or MP4</small></label>
@@ -184,7 +216,8 @@ export function MemoriesHub({ signedIn }: { signedIn: boolean }) {
           <button className="primary-button" disabled={!files.length||uploading}><Upload size={16}/>{uploading?'Uploading…':` Upload ${files.length||''} ${files.length===1?'memory':'memories'}`}</button>
         </form>
         <div className="section-heading"><div><div className="eyebrow">ALBUM GALLERY</div><h3>Shared moments</h3><p>New uploads remain visible to you while they await moderation.</p></div></div>
-        {loadingAlbum?<div className="empty-state">Loading memories…</div>:<div className="memory-gallery-grid">{media.map((item,index)=><div key={item.id} className={"memory-media-card "+(index===0?"memory-media-featured":"")}>{item.mediaKind==='video'?<video src={item.url} controls preload="metadata"/>:<img src={item.url} alt={item.caption??'Shared party memory'}/>}<small>{item.caption||'A moment worth keeping'}</small>{item.moderationStatus&&item.moderationStatus!=='approved'&&<small className="text-amber-200">Awaiting moderation</small>}<div className="flex items-center justify-between gap-2"><button type="button" className="text-button" onClick={()=>void toggleSaved('save_media',item.id)}>{savedMedia.includes(item.id)?'Saved':'Save media'}</button><button type="button" className="text-button" onClick={()=>void deleteMedia(item.id)}>Remove</button></div></div>)}</div>}
+        {loadingAlbum?<div className="empty-state">Loading memories…</div>:<div className="memory-gallery-grid">{media.map((item,index)=><div key={item.id} className={"memory-media-card "+(index===0?"memory-media-featured":"")}>{item.mediaKind==='video'?<video src={item.url} controls preload="metadata"/>:<img src={item.url} alt={item.caption??'Shared party memory'}/>}<small>{item.caption||'A moment worth keeping'}</small>{item.moderationStatus&&item.moderationStatus!=='approved'&&<small className="text-amber-200">Awaiting moderation</small>}<div className="flex items-center justify-between gap-2"><button type="button" className="text-button" onClick={()=>void toggleSaved('save_media',item.id)}>{savedMedia.includes(item.id)?'Saved':'Save media'}</button><button type="button" className="text-button" onClick={()=>void reactToMemory(item.id)}>♥ Love</button><button type="button" className="text-button" onClick={()=>void deleteMedia(item.id)}>Remove</button></div></div>)}</div>}
+        <section className="hub-form"><h3>Album conversation</h3><form onSubmit={postComment}><label>Leave a comment<input value={commentBody} onChange={e=>setCommentBody(e.target.value)} maxLength={1200} placeholder="Share a thought about this night…"/></label><button className="primary-button" disabled={!commentBody.trim()}>Post comment</button></form>{comments.map(comment=><div className="hub-deal" key={comment.id}><b>{comment.displayName??"Member"}</b><p>{comment.body}</p></div>)}</section>
         {!loadingAlbum&&!media.length&&<div className="empty-state"><Camera size={24}/><b>No memories in this album yet</b><p>Choose photos or videos above to start your gallery.</p></div>}
       </div>
     </div>}
