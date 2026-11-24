@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryAlbums, memoryMedia, memoryTags, meetupMembers, meetups, profiles, squadMembers } from '../db/schema'
 import { getAuthenticatedUserId } from '../lib/session'
+import { canAccessMemoryAlbum } from '../lib/community-media'
 import { jsonError, jsonOk } from '../lib/http'
 
 const schema = z.object({
@@ -11,7 +12,7 @@ const schema = z.object({
   description: z.string().trim().max(500).nullable().optional(),
   meetupId: z.string().uuid().nullable().optional(),
   squadId: z.string().uuid().nullable().optional(),
-  visibility: z.enum(['public','members','private']).default('members'),
+  visibility: z.enum(['public','followers','meetup','squad','invited','private','members']).default('members'),
 }).strict().refine((value) => !(value.meetupId && value.squadId), 'Choose either a meetup or a squad.')
 
 export const Route = createFileRoute('/api/memories')({
@@ -30,18 +31,7 @@ export const Route = createFileRoute('/api/memories')({
           .orderBy(desc(memoryAlbums.createdAt)).limit(100)
         const visible = []
         for (const album of albums) {
-          let allowed = album.creatorId === userId || album.visibility === 'public'
-          if (!allowed && album.visibility === 'private') continue
-          if (!allowed && album.meetupId) {
-            const [host] = await db.select({ id: meetups.id }).from(meetups).where(and(eq(meetups.id, album.meetupId), eq(meetups.hostId, userId))).limit(1)
-            const [member] = await db.select({ id: meetupMembers.id }).from(meetupMembers).where(and(eq(meetupMembers.meetupId, album.meetupId), eq(meetupMembers.userId, userId), eq(meetupMembers.status, 'approved'))).limit(1)
-            allowed = Boolean(host || member)
-          }
-          if (!allowed && album.squadId) {
-            const [member] = await db.select({ id: squadMembers.id }).from(squadMembers).where(and(eq(squadMembers.squadId, album.squadId), eq(squadMembers.userId, userId), eq(squadMembers.status, 'active'))).limit(1)
-            allowed = Boolean(member)
-          }
-          if (!allowed) continue
+          if (!await canAccessMemoryAlbum(album.id, userId)) continue
           const [mediaCount] = await db.select({ value: count() }).from(memoryMedia).where(and(eq(memoryMedia.albumId, album.id), eq(memoryMedia.moderationStatus, 'approved')))
           visible.push({ ...album, mediaCount: mediaCount?.value ?? 0 })
         }

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { and, eq } from 'drizzle-orm'
 import { getDb } from '../db'
-import { memoryAlbums, meetupMembers, meetups, squadMembers, venueStaff, venues } from '../db/schema'
+import { memoryAlbums, memoryAlbumMembers, memoryFollowers, meetupMembers, meetups, squadMembers, venueStaff, venues } from '../db/schema'
 
 const IMAGE_TYPES: Record<string, { ext: string; signature: number[] }> = {
   'image/jpeg': { ext: 'jpg', signature: [0xff, 0xd8, 0xff] },
@@ -48,6 +48,17 @@ export async function canAccessMemoryAlbum(albumId: string, userId: string) {
   const [album] = await db.select().from(memoryAlbums).where(eq(memoryAlbums.id, albumId)).limit(1)
   if (!album) return null
   if (album.creatorId === userId || album.visibility === 'public') return album
+  const [collaborator] = await db.select({ id: memoryAlbumMembers.id }).from(memoryAlbumMembers).where(and(
+    eq(memoryAlbumMembers.albumId, album.id), eq(memoryAlbumMembers.userId, userId), eq(memoryAlbumMembers.status, 'accepted'),
+  )).limit(1)
+  if (collaborator) return album
+  if (album.visibility === 'invited') return null
+  if (album.visibility === 'followers') {
+    const [follower] = await db.select({ id: memoryFollowers.id }).from(memoryFollowers).where(and(
+      eq(memoryFollowers.creatorId, album.creatorId), eq(memoryFollowers.followerId, userId),
+    )).limit(1)
+    return follower ? album : null
+  }
   if (album.visibility === 'private') return null
   if (album.meetupId) {
     const [meetup] = await db.select({ hostId: meetups.hostId }).from(meetups).where(eq(meetups.id, album.meetupId)).limit(1)
