@@ -417,3 +417,5 @@ button{cursor:pointer}
  .memory-album-toolbar{gap:6px}
  .memory-conversation{padding:12px}
 }
+
+.memory-detail-shell:has(.memory-album-screen)>:not(.memory-album-screen):not(.hub-notice){display:none}
