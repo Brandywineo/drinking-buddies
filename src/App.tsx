@@ -18,6 +18,8 @@ type MemberProfile = {
   bio: string | null
   gender: string | null
   interests: string[]
+  preferredDrinks: string[]
+  goingOut?: { venueName: string | null; area: string | null; startsAt: string; endsAt: string; drinks: string[]; drinkQuantity: string | null; intention: string; note: string | null } | null
   connectionIntents: string[]
   homeArea: string | null
   avatarUrl?: string | null
@@ -36,6 +38,7 @@ type OwnProfile = {
   preferredGenders: string[]
   connectionIntents: string[]
   interests: string[]
+  preferredDrinks: string[]
   homeArea: string | null
 }
 type SessionUser = { id: string; email: string; displayName: string | null }
@@ -82,10 +85,23 @@ function App() {
   const [profileGender, setProfileGender] = useState('')
   const [profileArea, setProfileArea] = useState('')
   const [profileInterests, setProfileInterests] = useState('')
+  const [profileDrinks, setProfileDrinks] = useState('')
+  const [goingOutPlan, setGoingOutPlan] = useState<any>(null)
+  const [showGoingOutForm, setShowGoingOutForm] = useState(false)
+  const [outingVenue, setOutingVenue] = useState('')
+  const [outingArea, setOutingArea] = useState('')
+  const [outingStart, setOutingStart] = useState('')
+  const [outingEnd, setOutingEnd] = useState('')
+  const [outingDrinks, setOutingDrinks] = useState<string[]>([])
+  const [outingQuantity, setOutingQuantity] = useState('')
+  const [outingIntention, setOutingIntention] = useState('company')
+  const [outingNote, setOutingNote] = useState('')
   const [profileIntents, setProfileIntents] = useState<string[]>(['drinking_buddies'])
   const [preferredGenders, setPreferredGenders] = useState<string[]>([])
   const [locationVisibility, setLocationVisibility] = useState<'private' | 'matches' | 'public'>('private')
   const [discoverable, setDiscoverable] = useState(true)
+
+  async function loadGoingOutPlan() { const response = await fetch('/api/going-out'); const result = await response.json(); if (response.ok) setGoingOutPlan(result.data?.plan ?? null) }
 
   async function loadFavorites() {
     const response = await fetch('/api/favorites')
@@ -143,6 +159,8 @@ function App() {
           setProfileGender(ownProfile.gender ?? '')
           setProfileArea(ownProfile.homeArea ?? '')
           setProfileInterests(ownProfile.interests.join(', '))
+          setProfileDrinks((ownProfile.preferredDrinks ?? []).join(', '))
+          void loadGoingOutPlan()
           setProfileIntents(ownProfile.connectionIntents)
           setPreferredGenders(ownProfile.preferredGenders)
           setLocationVisibility(ownProfile.locationVisibility)
@@ -184,6 +202,18 @@ function App() {
       notify(cause instanceof Error ? cause.message : 'Could not send your interest.')
     }
   }
+
+  const publishGoingOut = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!outingStart || !outingEnd) { notify('Choose when your outing starts and ends.'); return }
+    try {
+      const response = await fetch('/api/going-out', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ venueName: outingVenue || null, area: outingArea || profile?.homeArea || null, startsAt: new Date(outingStart).toISOString(), endsAt: new Date(outingEnd).toISOString(), drinks: outingDrinks, drinkQuantity: outingQuantity || null, intention: outingIntention, note: outingNote || null }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error?.message ?? 'Could not publish your outing.')
+      setGoingOutPlan(result.data.plan); setShowGoingOutForm(false); await loadDiscovery(); notify('Your going-out plan is live in discovery.')
+    } catch (cause) { notify(cause instanceof Error ? cause.message : 'Could not publish your outing.') }
+  }
+  const cancelGoingOut = async () => { const response = await fetch('/api/going-out', { method: 'DELETE' }); const result = await response.json(); if (!response.ok) { notify(result.error?.message ?? 'Could not cancel your plan.'); return } setGoingOutPlan(null); await loadDiscovery(); notify('Your outing is no longer shown in discovery.') }
 
   const toggleFavorite = async (id: string) => {
     const saved = favoritePeople.includes(id)
@@ -244,6 +274,7 @@ function App() {
           gender: profileGender || null,
           homeArea: profileArea || null,
           interests: profileInterests.split(',').map((item) => item.trim()).filter(Boolean),
+          preferredDrinks: profileDrinks.split(',').map((item) => item.trim()).filter(Boolean),
           connectionIntents: profileIntents,
           preferredGenders,
           discoverable,
@@ -272,7 +303,7 @@ function App() {
     try {
       const response = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         displayName: profile.displayName, bio: profile.bio, gender: profile.gender, homeArea: homeArea || null,
-        interests: profile.interests, connectionIntents: profile.connectionIntents, preferredGenders: profile.preferredGenders,
+        interests: profile.interests, preferredDrinks: profile.preferredDrinks ?? [], connectionIntents: profile.connectionIntents, preferredGenders: profile.preferredGenders,
         discoverable: profile.discoverable, locationVisibility: profile.locationVisibility,
         displayPopularityScore: profile.displayPopularityScore, displayReputationScore: profile.displayReputationScore,
       }) })
