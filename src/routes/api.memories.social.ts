@@ -31,7 +31,10 @@ export const Route = createFileRoute('/api/memories/social')({
       const userId = await getAuthenticatedUserId(request)
       if (!userId) return jsonError('Sign in to view saved memories.', 401, 'UNAUTHENTICATED')
       const db = getDb()
-      const [albums, media, notifications, invites] = await Promise.all([
+      const albumId = new URL(request.url).searchParams.get('albumId')
+      if (albumId && !z.string().uuid().safeParse(albumId).success) return jsonError('Invalid album.', 400, 'INVALID_ALBUM')
+      if (albumId && !await canAccessMemoryAlbum(albumId, userId)) return jsonError('Album not found or private.', 404, 'ALBUM_NOT_FOUND')
+      const [albums, media, notifications, invites, comments] = await Promise.all([
         db.select({ id: memoryAlbumSaves.id, albumId: memoryAlbumSaves.albumId, title: memoryAlbums.title, createdAt: memoryAlbumSaves.createdAt })
           .from(memoryAlbumSaves).innerJoin(memoryAlbums, eq(memoryAlbums.id, memoryAlbumSaves.albumId))
           .where(eq(memoryAlbumSaves.userId, userId)).orderBy(desc(memoryAlbumSaves.createdAt)).limit(100),
@@ -42,8 +45,9 @@ export const Route = createFileRoute('/api/memories/social')({
         db.select({ id: memoryAlbumInvites.id, albumId: memoryAlbumInvites.albumId, title: memoryAlbums.title, createdAt: memoryAlbumInvites.createdAt })
           .from(memoryAlbumInvites).innerJoin(memoryAlbums, eq(memoryAlbums.id, memoryAlbumInvites.albumId))
           .where(and(eq(memoryAlbumInvites.invitedUserId, userId), eq(memoryAlbumInvites.status, 'pending'))).orderBy(desc(memoryAlbumInvites.createdAt)).limit(50),
+        albumId ? db.select({ id: memoryComments.id, albumId: memoryComments.albumId, mediaId: memoryComments.mediaId, parentId: memoryComments.parentId, body: memoryComments.body, createdAt: memoryComments.createdAt, userId: memoryComments.userId, displayName: profiles.displayName }).from(memoryComments).leftJoin(profiles, eq(profiles.userId, memoryComments.userId)).where(and(eq(memoryComments.albumId, albumId), isNull(memoryComments.deletedAt))).orderBy(desc(memoryComments.createdAt)).limit(200) : Promise.resolve([]),
       ])
-      return jsonOk({ savedAlbums: albums, savedMedia: media, notifications, invitations: invites })
+      return jsonOk({ savedAlbums: albums, savedMedia: media, notifications, invitations: invites, comments })
     },
     POST: async ({ request }) => {
       try {
