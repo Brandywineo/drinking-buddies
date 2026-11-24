@@ -3,8 +3,8 @@ import { and, createHash, eq, gt, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { memoryMedia, memoryShareLinks } from '../db/schema'
-import { readCommunityFile } from '../../lib/community-media'
-import { jsonError } from '../../lib/http'
+import { readCommunityFile } from '../lib/community-media'
+import { jsonError } from '../lib/http'
 
 export const Route = createFileRoute('/api/memories/share/$token/media/$mediaId')({
   server: { handlers: {
