@@ -3,7 +3,7 @@ import { and, eq, gt, lt } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { goingOutPlans, profiles } from '../db/schema'
-import { storeCommunityFile, readCommunityFile } from '../lib/community-media'
+import { storeCommunityFile } from '../lib/community-media'
 import { getAuthenticatedUserId } from '../lib/session'
 import { jsonError, jsonOk } from '../lib/http'
 
