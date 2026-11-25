@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, ilike, ne, notExists, or, isNull, isNotNull, sql, inArray, gt } from 'drizzle-orm'
+import { and, eq, ilike, ne, notExists, or, isNull, isNotNull, sql, inArray, gt, desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { goingOutPlans, matches, profileLikes, profilePasses, profiles, userBlocks, users } from '../db/schema'
@@ -20,6 +20,52 @@ export const Route = createFileRoute('/api/discovery')({
       if (!parsed.success) return jsonError('Invalid discovery filters.', 400, 'INVALID_FILTERS')
 
       const db = getDb()
+      const now = new Date()
+      const availabilityRows = await db.select({
+        id: goingOutPlans.id,
+        userId: goingOutPlans.userId,
+        creatorName: sql<string>`COALESCE(${profiles.displayName}, split_part(${users.email}, '@', 1))`,
+        venueName: goingOutPlans.venueName,
+        area: goingOutPlans.area,
+        startsAt: goingOutPlans.startsAt,
+        endsAt: goingOutPlans.endsAt,
+        drinks: goingOutPlans.drinks,
+        drinkQuantity: goingOutPlans.drinkQuantity,
+        intention: goingOutPlans.intention,
+        note: goingOutPlans.note,
+        availabilityMode: goingOutPlans.availabilityMode,
+        mediaKind: goingOutPlans.appearanceMediaKind,
+        mediaUrl: sql<string>`'/api/going-out/photo/' || ${goingOutPlans.id}::text`,
+      }).from(goingOutPlans)
+        .innerJoin(users, eq(users.id, goingOutPlans.userId))
+        .leftJoin(profiles, eq(profiles.userId, goingOutPlans.userId))
+        .where(and(
+          eq(users.status, 'active'),
+          eq(goingOutPlans.status, 'active'),
+          gt(goingOutPlans.endsAt, now),
+          isNotNull(goingOutPlans.appearancePhotoKey),
+          ne(goingOutPlans.userId, userId),
+          notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, goingOutPlans.userId)))),
+          notExists(db.select({ id: userBlocks.id }).from(userBlocks).where(and(eq(userBlocks.blockerId, goingOutPlans.userId), eq(userBlocks.blockedId, userId)))),
+        ))
+        .orderBy(desc(goingOutPlans.createdAt))
+        .limit(100)
+      const appearances = availabilityRows.map((item) => ({
+        id: item.id,
+        creatorId: item.userId,
+        creatorName: item.creatorName,
+        venueName: item.venueName,
+        area: item.area,
+        startsAt: item.startsAt,
+        endsAt: item.endsAt,
+        drinks: item.drinks,
+        drinkQuantity: item.drinkQuantity,
+        intention: item.intention,
+        note: item.note,
+        availabilityMode: item.availabilityMode,
+        mediaKind: item.mediaKind,
+        mediaUrl: item.mediaUrl,
+      }))
       const [viewer] = await db.select({
         gender: profiles.gender,
         preferredGenders: profiles.preferredGenders,
@@ -68,7 +114,6 @@ export const Route = createFileRoute('/api/discovery')({
         )).limit(500)
 
       const candidateIds = candidates.map((candidate) => candidate.id)
-      const now = new Date()
       const activePlans = candidateIds.length
         ? await db.select().from(goingOutPlans).where(and(
             inArray(goingOutPlans.userId, candidateIds),
@@ -104,7 +149,7 @@ export const Route = createFileRoute('/api/discovery')({
         return { candidate, plan, visibleArea, signals, score }
       }).sort((a, b) => b.score - a.score || (a.plan?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.plan?.startsAt.getTime() ?? Number.MAX_SAFE_INTEGER)).slice(0, 30)
 
-      return jsonOk({ profiles: ranked.map(({ candidate, plan, visibleArea, signals }) => ({
+      return jsonOk({ appearances, profiles: ranked.map(({ candidate, plan, visibleArea, signals }) => ({
         id: candidate.id,
         displayName: candidate.displayName,
         avatarUrl: candidate.avatarUrl,
