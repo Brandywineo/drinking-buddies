@@ -46,8 +46,6 @@ export const Route = createFileRoute('/api/going-out')({
         const startsAt = new Date(parsed.data.startsAt), endsAt = new Date(parsed.data.endsAt), now = new Date()
         if (startsAt <= now || endsAt <= startsAt || endsAt.getTime() - startsAt.getTime() > 24*60*60*1000) return jsonError('Choose a future start and an end time within 24 hours of the start.', 400, 'INVALID_GOING_OUT_TIME')
         const db = getDb()
-        const [profile] = await db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.userId, userId)).limit(1)
-        if (!profile) return jsonError('Complete the basic profile from your account menu before publishing an appearance.', 409, 'PROFILE_REQUIRED')
         const stored = await storeCommunityFile(file, true)
         const [plan] = await db.insert(goingOutPlans).values({ userId, ...parsed.data, appearancePhotoKey: stored.key, appearanceMediaKind: stored.mediaKind, startsAt, endsAt, venueName: parsed.data.venueName ?? null, area: parsed.data.area ?? null, drinkQuantity: parsed.data.drinkQuantity ?? null, note: parsed.data.note ?? null })
           .onConflictDoUpdate({ target: goingOutPlans.userId, set: { ...parsed.data, appearancePhotoKey: stored.key, appearanceMediaKind: stored.mediaKind, startsAt, endsAt, venueName: parsed.data.venueName ?? null, area: parsed.data.area ?? null, drinkQuantity: parsed.data.drinkQuantity ?? null, note: parsed.data.note ?? null, status: 'active', updatedAt: now } }).returning()
