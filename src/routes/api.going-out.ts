@@ -38,7 +38,7 @@ export const Route = createFileRoute('/api/going-out')({
         if (!userId) return jsonError('Sign in to publish an outing.', 401, 'UNAUTHENTICATED')
         const form = await request.formData()
         const file = form.get('photo')
-        if (!(file instanceof File)) return jsonError('Add a photo to publish your discoverable appearance.', 400, 'APPEARANCE_PHOTO_REQUIRED')
+        if (!(file instanceof File)) return jsonError('Add a photo or video to publish your availability.', 400, 'APPEARANCE_MEDIA_REQUIRED')
         const raw = Object.fromEntries([...form.entries()].filter(([key]) => key !== 'photo'))
         if (typeof raw.drinks === 'string') { try { raw.drinks = JSON.parse(raw.drinks) } catch { return jsonError('Invalid drinks selection.', 400, 'INVALID_GOING_OUT_PLAN') } }
         const parsed = planSchema.safeParse(raw)
@@ -48,9 +48,9 @@ export const Route = createFileRoute('/api/going-out')({
         const db = getDb()
         const [profile] = await db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.userId, userId)).limit(1)
         if (!profile) return jsonError('Complete the basic profile from your account menu before publishing an appearance.', 409, 'PROFILE_REQUIRED')
-        const stored = await storeCommunityFile(file, false)
-        const [plan] = await db.insert(goingOutPlans).values({ userId, ...parsed.data, appearancePhotoKey: stored.key, startsAt, endsAt, venueName: parsed.data.venueName ?? null, area: parsed.data.area ?? null, drinkQuantity: parsed.data.drinkQuantity ?? null, note: parsed.data.note ?? null })
-          .onConflictDoUpdate({ target: goingOutPlans.userId, set: { ...parsed.data, appearancePhotoKey: stored.key, startsAt, endsAt, venueName: parsed.data.venueName ?? null, area: parsed.data.area ?? null, drinkQuantity: parsed.data.drinkQuantity ?? null, note: parsed.data.note ?? null, status: 'active', updatedAt: now } }).returning()
+        const stored = await storeCommunityFile(file, true)
+        const [plan] = await db.insert(goingOutPlans).values({ userId, ...parsed.data, appearancePhotoKey: stored.key, appearanceMediaKind: stored.mediaKind, startsAt, endsAt, venueName: parsed.data.venueName ?? null, area: parsed.data.area ?? null, drinkQuantity: parsed.data.drinkQuantity ?? null, note: parsed.data.note ?? null })
+          .onConflictDoUpdate({ target: goingOutPlans.userId, set: { ...parsed.data, appearancePhotoKey: stored.key, appearanceMediaKind: stored.mediaKind, startsAt, endsAt, venueName: parsed.data.venueName ?? null, area: parsed.data.area ?? null, drinkQuantity: parsed.data.drinkQuantity ?? null, note: parsed.data.note ?? null, status: 'active', updatedAt: now } }).returning()
         return jsonOk({ plan: { ...plan, appearancePhotoUrl: '/api/going-out/photo/' + plan.id } }, 201)
       } catch (error) { console.error('Going-out plan create failed', error); return jsonError('Could not publish your outing.', 500, 'GOING_OUT_CREATE_FAILED') }
     },
