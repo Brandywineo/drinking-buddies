@@ -24,7 +24,7 @@ export const Route = createFileRoute('/api/discovery')({
       const availabilityRows = await db.select({
         id: goingOutPlans.id,
         userId: goingOutPlans.userId,
-        creatorName: sql<string>`COALESCE(${profiles.displayName}, split_part(${users.email}, '@', 1))`,
+        creatorName: sql<string>`COALESCE(${profiles.displayName}, 'Someone nearby')`,
         venueName: goingOutPlans.venueName,
         area: goingOutPlans.area,
         startsAt: goingOutPlans.startsAt,
