@@ -7,6 +7,7 @@ import {
 import { Meetups } from './Meetups'
 import { Messaging } from './Messaging'
 import { GoOutHub } from './GoOutHub'
+import { AvailabilityDiscovery } from './AvailabilityDiscovery'
 import { MemoriesHub, VenueHub } from './CommunityHubs'
 import { ActivityCenter } from './ActivityCenter'
 
@@ -53,6 +54,7 @@ const intentLabels: Record<string, string> = {
 function App() {
   const [tab, setTab] = useState<Tab>('discover')
   const [discoveryMode, setDiscoveryMode] = useState<'social' | 'friendship' | 'dating'>('social')
+  const [discoverySection, setDiscoverySection] = useState<'availability' | 'people'>('availability')
   const [discoveryLayout, setDiscoveryLayout] = useState<'deck' | 'grid'>('deck')
   const [showDiscoveryModes, setShowDiscoveryModes] = useState(false)
   const swipeStart = useRef<{ userId: string; x: number; y: number } | null>(null)
@@ -393,7 +395,7 @@ function App() {
 
 
           {tab === 'discover' && <div className="section-tabs" role="tablist" aria-label="Discovery sections">
-            <button role="tab" aria-selected="true" className="selected" onClick={() => setTab('discover')}>People <span>{profiles.length}</span></button>
+            <button role="tab" aria-selected={discoverySection === 'availability'} className={discoverySection === 'availability' ? 'selected' : ''} onClick={() => setDiscoverySection('availability')}>Availability</button><button role="tab" aria-selected={discoverySection === 'people'} className={discoverySection === 'people' ? 'selected' : ''} onClick={() => setDiscoverySection('people')}>People <span>{profiles.length}</span></button>
             <button role="tab" aria-selected="false" onClick={() => setTab('meetups')}>Meetups</button>
             <button role="tab" aria-selected="false" onClick={() => setTab('places')}>Places & events</button>
             <button role="tab" aria-selected="false" onClick={() => setTab('memories')}>Party Memories</button>
@@ -411,7 +413,8 @@ function App() {
 
           {tab === 'discover' && <>
             {authStatus === 'loading' ? <div className="empty-state"><b>Loading your account…</b></div> : authStatus === 'signed_out' ? <div className="empty-state"><ShieldCheck size={26} /><h2>Sign in to meet your people.</h2><p>Discover real community members, save your preferences and connect through mutual matches.</p><button className="primary-button" onClick={() => window.location.assign('/login')}>Sign in to discover <ArrowRight size={15} /></button><p>New here? <a href="/register">Create an account</a></p></div> : <>
-            <div className="discover-snap-container" aria-label="People and community discovery">
+            {discoverySection === 'availability' && <AvailabilityDiscovery signedIn={authStatus === 'signed_in'} onSignIn={() => window.location.assign('/login')} />}
+            {discoverySection === 'people' && <div className="discover-snap-container" aria-label="People and community discovery">
               <section className="discover-snap-panel discover-people-panel" aria-label="People discovery">
             <div className="section-heading"><div><div className="eyebrow">YOUR NEXT CONNECTION</div><h2>{discoveryMode === 'dating' ? 'People open to dating' : discoveryMode === 'friendship' ? 'People looking for friendship' : 'People near you'}</h2><p>Say hello to someone new. Match first, then chat.</p></div><div className="flex flex-wrap items-center gap-2"><div className="discovery-layout-toggle" role="group" aria-label="Discovery layout"><button className={discoveryLayout === 'deck' ? 'active' : ''} onClick={() => setDiscoveryLayout('deck')}>Swipe deck</button><button className={discoveryLayout === 'grid' ? 'active' : ''} onClick={() => setDiscoveryLayout('grid')}>Grid</button></div><button className="filter-button" onClick={() => setShowFilters(!showFilters)}><SlidersHorizontal size={16} /> Filters</button></div></div>
             {showFilters && <div className="filter-panel"><label>Area<select value={area} onChange={(e) => { setArea(e.target.value); void loadDiscovery(e.target.value) }}><option>All areas</option><option>Westlands</option><option>Kilimani</option><option>Lavington</option><option>Riverside</option><option>Parklands</option></select></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, area or interest" /></label><button className="clear-button" onClick={() => { setArea('All areas'); setQuery(''); void loadDiscovery('All areas') }}>Clear</button></div>}
@@ -422,7 +425,7 @@ function App() {
               <section className="discover-snap-panel discover-community-panel" aria-label="Community discovery">
                 <GoOutHub currentUserId={currentUser?.id ?? null} signedIn={authStatus === 'signed_in'} onSignIn={() => window.location.assign('/login')} />
               </section>
-            </div>
+            </div>}
             </>}
           </>}
 
