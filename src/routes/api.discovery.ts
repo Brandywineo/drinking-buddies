@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { and, eq, ilike, ne, notExists, or, isNull, sql, inArray, gt } from 'drizzle-orm'
+import { and, eq, ilike, ne, notExists, or, isNull, isNotNull, sql, inArray, gt } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { goingOutPlans, matches, profileLikes, profilePasses, profiles, userBlocks, users } from '../db/schema'
@@ -27,7 +27,7 @@ export const Route = createFileRoute('/api/discovery')({
         preferredDrinks: profiles.preferredDrinks,
         homeArea: profiles.homeArea,
       }).from(profiles).where(eq(profiles.userId, userId)).limit(1)
-      if (!viewer) return jsonError('Complete your profile before discovering people.', 409, 'PROFILE_REQUIRED')
+      // Discovery remains usable for new accounts; profile editing is optional until they publish an appearance.
 
       const intentFilter = parsed.data.mode === 'friendship' ? 'friendship' : parsed.data.mode === 'dating' ? 'social_and_dating' : null
       const candidates = await db.select({
@@ -73,22 +73,23 @@ export const Route = createFileRoute('/api/discovery')({
             inArray(goingOutPlans.userId, candidateIds),
             eq(goingOutPlans.status, 'active'),
             gt(goingOutPlans.endsAt, now),
+            isNotNull(goingOutPlans.appearancePhotoKey),
           ))
         : []
       const planByUser = new Map(activePlans.map((plan) => [plan.userId, plan]))
-      const viewerPrefs = Array.isArray(viewer.preferredGenders) ? viewer.preferredGenders : []
-      const viewerInterests = new Set((Array.isArray(viewer.interests) ? viewer.interests : []).map((value) => value.toLowerCase()))
-      const viewerDrinks = new Set((Array.isArray(viewer.preferredDrinks) ? viewer.preferredDrinks : []).map((value) => value.toLowerCase()))
+      const viewerPrefs = Array.isArray(viewer?.preferredGenders) ? viewer.preferredGenders : []
+      const viewerInterests = new Set((Array.isArray(viewer?.interests) ? viewer.interests : []).map((value) => value.toLowerCase()))
+      const viewerDrinks = new Set((Array.isArray(viewer?.preferredDrinks) ? viewer.preferredDrinks : []).map((value) => value.toLowerCase()))
 
       const ranked = candidates.filter((candidate) => {
         const candidatePrefs = Array.isArray(candidate.preferredGenders) ? candidate.preferredGenders : []
         const viewerGenderOk = viewerPrefs.length === 0 || (candidate.gender ? viewerPrefs.includes(candidate.gender) : false)
-        const candidateGenderOk = candidatePrefs.length === 0 || (viewer.gender ? candidatePrefs.includes(viewer.gender) : false)
+        const candidateGenderOk = !viewer?.gender || candidatePrefs.length === 0 || candidatePrefs.includes(viewer.gender)
         return viewerGenderOk && candidateGenderOk
       }).map((candidate) => {
         const plan = planByUser.get(candidate.id)
         const visibleArea = candidate.locationVisibility === 'public' ? candidate.homeArea : null
-        const sameArea = Boolean(viewer.homeArea && visibleArea && viewer.homeArea.trim().toLowerCase() === visibleArea.trim().toLowerCase())
+        const sameArea = Boolean(viewer?.homeArea && visibleArea && viewer.homeArea.trim().toLowerCase() === visibleArea.trim().toLowerCase())
         const sharedDrinks = (Array.isArray(candidate.preferredDrinks) ? candidate.preferredDrinks : [])
           .filter((value) => viewerDrinks.has(value.toLowerCase()))
         const sharedInterests = (Array.isArray(candidate.interests) ? candidate.interests : [])
@@ -122,6 +123,8 @@ export const Route = createFileRoute('/api/discovery')({
           drinkQuantity: plan.drinkQuantity,
           intention: plan.intention,
           note: plan.note,
+          availabilityMode: plan.availabilityMode,
+          appearancePhotoUrl: '/api/going-out/photo/' + plan.id,
         } : null,
         ...(candidate.displayPopularityScore ? { popularityScore: Number(candidate.popularityScore ?? 0) } : {}),
         ...(candidate.displayReputationScore ? { reputationScore: Number(candidate.reputationScore ?? 0) } : {}),
