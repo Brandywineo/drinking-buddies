@@ -10,7 +10,7 @@ const IMAGE_TYPES: Record<string, { ext: string; signature: number[] }> = {
   'image/png': { ext: 'png', signature: [0x89, 0x50, 0x4e, 0x47] },
   'image/webp': { ext: 'webp', signature: [0x52, 0x49, 0x46, 0x46] },
 }
-const VIDEO_TYPES: Record<string, { ext: string }> = { 'video/mp4': { ext: 'mp4' } }
+const VIDEO_TYPES: Record<string, { ext: string }> = { 'video/mp4': { ext: 'mp4' }, 'video/quicktime': { ext: 'mov' } }
 
 export function mediaDirectory() {
   return process.env.COMMUNITY_MEDIA_DIR?.trim() || join(process.cwd(), 'storage', 'community-media')
@@ -39,7 +39,7 @@ export async function storeCommunityFile(file: File, allowVideo = true) {
 }
 
 export async function readCommunityFile(key: string) {
-  if (!/^[a-f0-9-]{36}\.(jpg|png|webp|mp4)$/.test(key)) throw new Error('Invalid media key.')
+  if (!/^[a-f0-9-]{36}\.(jpg|png|webp|mp4|mov)$/.test(key)) throw new Error('Invalid media key.')
   return readFile(join(mediaDirectory(), key))
 }
 

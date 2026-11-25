@@ -134,6 +134,13 @@
       "when": 1796342400000,
       "tag": "0018_going_out_appearances",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1796342400001,
+      "tag": "0019_going_out_video_media",
+      "breakpoints": true
     }
   ]
 }

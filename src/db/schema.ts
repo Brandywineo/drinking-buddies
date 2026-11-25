@@ -88,6 +88,7 @@ export const goingOutPlans = pgTable('going_out_plans', {
   intention: varchar('intention', { length: 32 }).notNull().default('company'),
   note: varchar('note', { length: 300 }),
   appearancePhotoKey: varchar('appearance_photo_key', { length: 255 }),
+  appearanceMediaKind: varchar('appearance_media_kind', { length: 12 }).notNull().default('image'),
   availabilityMode: varchar('availability_mode', { length: 24 }).notNull().default('planned'),
   status: varchar('status', { length: 16 }).notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
