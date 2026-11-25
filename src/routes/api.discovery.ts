@@ -50,6 +50,7 @@ export const Route = createFileRoute('/api/discovery')({
         .where(and(
           eq(users.status, 'active'),
           eq(profiles.discoverable, true),
+          isNotNull(profiles.avatarUrl),
           ne(users.id, userId),
           ...(intentFilter ? [sql`${profiles.connectionIntents} @> ${JSON.stringify([intentFilter])}::jsonb`] : []),
           ...(parsed.data.area ? [eq(profiles.locationVisibility, 'public'), ilike(profiles.homeArea, `%${parsed.data.area}%`)] : []),
