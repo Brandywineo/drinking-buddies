@@ -490,7 +490,7 @@ function DiscoveryDeck({ people, favoritePeople, onLike, onPass, onFavorite }: {
       if (Math.abs(dx) > 85 && Math.abs(dx) > Math.abs(dy) * 1.25) move(dx > 0 ? 'like' : 'pass')
     }}>
       <div className="deck-photo">
-        {(person.goingOut?.appearancePhotoUrl || person.avatarUrl) ? <img className="deck-photo-image" src={person.goingOut?.appearancePhotoUrl || person.avatarUrl || undefined} alt={person.displayName} loading="lazy" /> : <div className="deck-photo-placeholder"><Users size={42}/><span>Photo not available</span></div>}
+        {(person.goingOut?.appearancePhotoUrl || person.avatarUrl) ? <img className="deck-photo-image" src={person.goingOut?.appearancePhotoUrl || person.avatarUrl || undefined} alt={person.displayName} loading="eager" /> : <div className="deck-photo-placeholder"><Users size={42}/><span>Photo not available</span></div>}
         <span className="availability"><i/> {person.goingOut ? "Going out" : "Discoverable"}</span>
         <button className={'favorite-profile-button ' + (favoritePeople.includes(person.id) ? 'saved' : '')} aria-label="Toggle favourite" onClick={() => onFavorite(person.id)}><Star size={17} fill={favoritePeople.includes(person.id) ? 'currentColor' : 'none'}/></button>
         <div className="deck-person-title"><h3>{person.displayName}</h3><span><MapPin size={14}/> {person.homeArea ?? 'Area not shared'}{person.discoverySignals?.includes('Same area') ? ' · Nearby' : ''}</span></div>
