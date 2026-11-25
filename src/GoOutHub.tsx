@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type TouchEvent } from 'react'
 import { CalendarDays, Clock, MapPin, MessageCircle, Plus, RefreshCw, Users, X } from 'lucide-react'
 
 type Props = { currentUserId: string | null; signedIn: boolean; onSignIn: () => void }
@@ -180,7 +180,7 @@ export function GoOutHub({ currentUserId, signedIn, onSignIn }: Props) {
 
   useEffect(() => { setPlanIndex(0) }, [plans.map((plan) => plan.id).join('|')])
   useEffect(() => { setSquadIndex(0) }, [squads.map((squad) => squad.id).join('|')])
-  const handleDeckTouchEnd = (event: React.TouchEvent, kind: 'plans' | 'squads') => {
+  const handleDeckTouchEnd = (event: TouchEvent, kind: 'plans' | 'squads') => {
     if (!swipeStart) return
     const dx = event.changedTouches[0].clientX - swipeStart.x
     const dy = event.changedTouches[0].clientY - swipeStart.y
